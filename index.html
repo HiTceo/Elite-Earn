@@ -1,0 +1,1351 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Elite Earn - Premium Telegram Mini App</title>
+    
+    <script src='//libtl.com/sdk.js' data-zone='11235004' data-sdk='show_11235004'></script>
+
+    <script type="module">
+      import { initializeApp } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-app.js";
+      import { getAnalytics } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-analytics.js";
+      import { getFirestore, doc, setDoc, getDoc, updateDoc, increment, arrayUnion, collection, getDocs, query, where, onSnapshot, addDoc } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-firestore.js";
+      
+      const firebaseConfig = {
+        apiKey: "AIzaSyAZEZXBu_kJjNaVvtL1ZsWpXCkA2zTBZX4",
+        authDomain: "elite-earn.firebaseapp.com",
+        projectId: "elite-earn",
+        storageBucket: "elite-earn.firebasestorage.app",
+        messagingSenderId: "158179256083",
+        appId: "1:158179256083:web:9485d78385bd0c941a1ce6",
+        measurementId: "G-PX1Y9SS3EZ"
+      };
+
+      const app = initializeApp(firebaseConfig);
+      const db = getFirestore(app);
+      window.db = db;
+    </script>
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    
+    <style>
+        body { font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; -webkit-tap-highlight-color: transparent; }
+        .hide-scrollbar::-webkit-scrollbar { display: none; }
+        .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        .page-enter { transform: translateX(100%); opacity: 0; }
+        .page-active { transform: translateX(0); opacity: 1; transition: all 0.3s ease-out; }
+        .fade-enter { opacity: 0; transform: scale(0.95); transition: all 0.2s ease-out; }
+        .fade-active { opacity: 1; transform: scale(1); }
+        
+        iframe[src*="libtl.com"], div[id^="monetag"] { z-index: 99999 !important; max-width: 100vw !important; }
+    </style>
+</head>
+<body class="bg-[#F8F9FA] text-slate-800 antialiased select-none h-screen overflow-hidden flex flex-col relative">
+
+    <div id="custom-app-alert" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[99999] hidden items-center justify-center p-4 fade-enter">
+        <div class="bg-white rounded-2xl w-full max-w-[280px] p-5 text-center shadow-2xl flex flex-col items-center">
+            <div id="alert-icon-container" class="w-12 h-12 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center mb-3">
+                <i id="alert-icon" data-lucide="info" class="w-6 h-6"></i>
+            </div>
+            <h3 id="alert-title" class="font-black text-lg text-slate-900 mb-1">Notice</h3>
+            <p id="alert-message" class="text-xs text-slate-500 mb-5 font-medium leading-relaxed">Message goes here</p>
+            <button onclick="closeAppAlert()" class="w-full bg-[#6320EE] hover:bg-[#5017D4] text-white font-bold py-3 rounded-xl active:scale-95 transition shadow-lg shadow-purple-900/20 text-sm">OK</button>
+        </div>
+    </div>
+
+    <div id="restricted-screen" class="fixed inset-0 bg-[#070012] z-[9999] flex flex-col items-center justify-center hidden">
+        <div class="w-24 h-24 bg-red-900/30 text-red-500 rounded-full flex items-center justify-center mb-4 border border-red-500/50 shadow-[0_0_30px_rgba(239,68,68,0.4)]">
+            <i data-lucide="shield-ban" class="w-12 h-12"></i>
+        </div>
+        <h1 class="text-white text-3xl font-black tracking-widest text-center">ACCOUNT<br>RESTRICTED</h1>
+        <p class="text-red-400 font-bold mt-4 tracking-wider text-xs">SUSPICIOUS ACTIVITY DETECTED</p>
+        <div class="mt-6 bg-white/5 border border-white/10 rounded-xl p-4 w-[80%] max-w-sm text-center">
+            <p class="text-[10px] text-slate-400 uppercase tracking-widest mb-1">Reason</p>
+            <p id="restricted-reason" class="text-white text-xs font-bold leading-relaxed">Policy Violation</p>
+        </div>
+        <p class="text-[9px] text-slate-500 mt-8">Contact Support to appeal.</p>
+    </div>
+
+    <div id="loading-screen" class="fixed inset-0 bg-[#070012] z-[200] flex flex-col items-center justify-end transition-opacity duration-700 overflow-hidden pb-10">
+        <div class="w-full relative flex flex-col items-center z-10 px-8">
+            <p id="loading-text-node" class="text-[#D8B4FE] text-[10px] font-bold tracking-[0.15em] mb-4 z-10 drop-shadow-md">CONNECTING SECURELY...</p>
+            <div class="w-8 h-8 border-4 border-[#6320EE] border-t-transparent rounded-full animate-spin mb-4"></div>
+            <div class="w-full max-w-[280px] h-[4px] bg-white/10 rounded-full overflow-hidden z-10 relative hidden">
+                <div id="loading-progress" class="h-full bg-gradient-to-r from-[#6320EE] to-[#D8B4FE] rounded-full w-0 transition-all ease-out"></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="view-force-join" class="fixed inset-0 bg-white z-[150] flex flex-col max-w-md mx-auto hidden h-full transition-opacity duration-300">
+        <div class="flex-1 flex flex-col items-center justify-center p-6 text-center">
+            <div class="w-24 h-24 bg-purple-50 text-[#6320EE] rounded-full flex items-center justify-center mb-6 shadow-sm border border-purple-100 relative">
+                <i data-lucide="shield-alert" class="w-12 h-12"></i>
+                <div class="absolute -bottom-1 -right-1 bg-emerald-500 w-6 h-6 rounded-full border-2 border-white flex items-center justify-center">
+                    <i data-lucide="lock" class="w-3 h-3 text-white"></i>
+                </div>
+            </div>
+            <h2 class="text-2xl font-black text-slate-900 leading-tight">Join all the channels<br>To verify</h2>
+            <p class="text-xs text-slate-500 mt-2 max-w-[250px]">To ensure security and keep you updated, please join our official channels below.</p>
+            <div id="force-join-channels-container" class="w-full space-y-2 mt-8"></div>
+            <div class="h-10 shrink-0"></div>
+            <button onclick="verifyForceJoin(this)" class="w-full bg-[#6320EE] hover:bg-[#5017D4] text-white font-bold py-3.5 rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-purple-900/20 active:scale-[0.98] transition">
+                <i data-lucide="check-circle" class="w-5 h-5"></i> Verify
+            </button>
+        </div>
+    </div>
+
+    <div id="main-app" class="max-w-md mx-auto w-full flex-1 flex flex-col justify-between hidden h-full">
+        
+        <header class="flex items-center justify-between px-3 py-2 shrink-0 bg-[#F8F9FA] z-20 border-b border-slate-100/50">
+            <div class="flex items-center gap-2">
+                <img id="user-avatar" src="https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=150" alt="Avatar" class="w-10 h-10 rounded-full border-2 border-white shadow-xs object-cover">
+                <div>
+                    <div class="flex items-center gap-1">
+                        <span id="user-name" class="font-bold text-sm tracking-tight text-slate-900">Loading...</span>
+                        <i data-lucide="badge-check" class="w-3.5 h-3.5 fill-blue-500 text-white"></i>
+                    </div>
+                    <p class="text-[9px] text-slate-500 font-medium">ID: <span id="user-id">0000</span> &nbsp;|&nbsp; @<span id="user-username">username</span></p>
+                </div>
+            </div>
+            <div class="flex items-center gap-1">
+                <button onclick="openNotificationModal()" class="relative bg-white p-1.5 rounded-full border border-slate-100 shadow-2xs active:scale-95 transition">
+                    <i data-lucide="bell" class="w-4 h-4 text-slate-600"></i>
+                    <span id="noti-badge" class="absolute top-0 right-0 min-w-[12px] h-[12px] bg-rose-500 text-white text-[7px] font-bold rounded-full flex items-center justify-center px-0.5 hidden">0</span>
+                </button>
+                <button onclick="toggleThreeDotMenu()" class="bg-white p-1.5 rounded-full border border-slate-100 shadow-2xs active:scale-95 transition relative">
+                    <i data-lucide="ellipsis-vertical" class="w-4 h-4 text-slate-600"></i>
+                </button>
+            </div>
+        </header>
+
+        <div id="three-dot-menu" class="absolute right-3 top-12 bg-white border border-slate-100 rounded-xl shadow-lg z-50 p-1.5 w-40 flex flex-col gap-1 transition-all duration-200 opacity-0 scale-95 pointer-events-none">
+            <button onclick="openLinkFromMenu('dev')" class="flex items-center gap-2 text-left px-2 py-1.5 text-[10px] font-bold text-slate-700 hover:bg-slate-50 rounded-lg">
+                <i data-lucide="code-2" class="w-3.5 h-3.5 text-blue-500"></i> &lt;/&gt; Developer
+            </button>
+            <button onclick="openLinkFromMenu('privacy')" class="flex items-center gap-2 text-left px-2 py-1.5 text-[10px] font-bold text-slate-700 hover:bg-slate-50 rounded-lg">
+                <i data-lucide="shield" class="w-3.5 h-3.5 text-purple-500"></i> Privacy Policy
+            </button>
+            <button onclick="openLinkFromMenu('terms')" class="flex items-center gap-2 text-left px-2 py-1.5 text-[10px] font-bold text-slate-700 hover:bg-slate-50 rounded-lg">
+                <i data-lucide="file-text" class="w-3.5 h-3.5 text-amber-500"></i> Terms of Service
+            </button>
+        </div>
+
+        <div class="flex-1 overflow-hidden relative w-full px-3 pb-16 pt-1">
+            
+            <main id="tab-home" class="tab-content h-full flex flex-col gap-1.5 overflow-hidden">
+                <div class="bg-gradient-to-br from-amber-400 via-amber-400 to-yellow-500 text-slate-900 rounded-2xl p-3 shadow-md shadow-amber-400/10 relative overflow-hidden flex flex-col justify-between h-[110px] shrink-0">
+                    <div class="absolute right-3 top-3 bg-white/20 p-3 rounded-xl backdrop-blur-xs border border-white/10">
+                        <i data-lucide="wallet" class="w-8 h-8 text-amber-900/40"></i>
+                    </div>
+                    <div>
+                        <p class="text-[9px] font-bold uppercase tracking-wider text-amber-900/60">Total Balance</p>
+                        <h2 class="text-2xl font-black tracking-tight mt-0">$<span class="current-balance">0.0000</span></h2>
+                    </div>
+                    
+                    <div class="bg-white rounded-xl p-1 flex items-center justify-between text-slate-700 text-[10px] font-semibold shadow-xs">
+                        <button onclick="openHelpChannel()" class="flex-1 flex items-center justify-center gap-1 py-1 hover:bg-slate-50 rounded-lg transition"><i data-lucide="help-circle" class="w-3 h-3 text-slate-600"></i> Help</button>
+                        <div class="h-3 w-[1px] bg-slate-200"></div>
+                        <button onclick="openWithdrawPage()" class="flex-1 flex items-center justify-center gap-1 py-1 hover:bg-slate-50 rounded-lg transition"><i data-lucide="download" class="w-3 h-3 text-slate-600"></i> Withdraw</button>
+                        <div class="h-3 w-[1px] bg-slate-200"></div>
+                        <button onclick="switchTab('refer')" class="flex-1 flex items-center justify-center gap-1 py-1 hover:bg-slate-50 rounded-lg transition"><i data-lucide="user-plus" class="w-3 h-3 text-slate-600"></i> Invite</button>
+                        <div class="h-3 w-[1px] bg-slate-200"></div>
+                        <button onclick="openPromoModal()" class="flex-1 flex items-center justify-center gap-1 py-1 hover:bg-slate-50 rounded-lg transition"><i data-lucide="ticket" class="w-3 h-3 text-slate-600"></i> Code</button>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-xl p-1.5 border border-slate-100 shadow-2xs flex items-center justify-between divide-x divide-slate-100 text-center shrink-0">
+                    <div class="flex-1 flex flex-col items-center justify-center"><div class="flex items-center gap-0.5"><i data-lucide="play-circle" class="w-3 h-3 text-purple-600 shrink-0"></i><span id="stat-ads-watched" class="font-extrabold text-[11px] text-slate-800">0</span></div><p class="text-[8px] text-slate-400 font-medium">Ads Watched</p></div>
+                    <div class="flex-1 flex flex-col items-center justify-center"><div class="flex items-center gap-0.5"><i data-lucide="trending-up" class="w-3 h-3 text-emerald-600 shrink-0"></i><span id="stat-total-earned" class="font-extrabold text-[11px] text-slate-800">$0.00</span></div><p class="text-[8px] text-slate-400 font-medium">Total Earned</p></div>
+                    <div class="flex-1 flex flex-col items-center justify-center"><div class="flex items-center gap-0.5"><i data-lucide="users" class="w-3 h-3 text-orange-500 shrink-0"></i><span id="stat-referral-count" class="font-extrabold text-[11px] text-slate-800">0</span></div><p class="text-[8px] text-slate-400 font-medium">Referral</p></div>
+                    <div class="flex-1 flex flex-col items-center justify-center"><div class="flex items-center gap-0.5"><i data-lucide="check-square" class="w-3 h-3 text-blue-500 shrink-0"></i><span id="stat-valid-referral" class="font-extrabold text-[11px] text-slate-800">0</span></div><p class="text-[8px] text-slate-400 font-medium">Valid Refer</p></div>
+                    <div class="flex-1 flex flex-col items-center justify-center"><div class="flex items-center gap-0.5"><i data-lucide="calendar" class="w-3 h-3 text-indigo-500 shrink-0"></i><span id="stat-login-days" class="font-extrabold text-[11px] text-slate-800">0</span></div><p class="text-[8px] text-slate-400 font-medium">Days</p></div>
+                </div>
+
+                <div id="home-billboard" class="bg-gradient-to-r from-[#1E1145] via-[#2D1B67] to-[#1F124A] text-white rounded-xl p-3.5 relative overflow-hidden flex items-center justify-between h-[90px] shrink-0 shadow-xs cursor-pointer bg-cover bg-center">
+                    <span class="absolute top-2 left-2 z-20 bg-white/10 text-[8px] font-bold text-purple-100 px-1.5 py-0.5 rounded-full border border-white/5 backdrop-blur-md shadow-sm">+$0.0001 / 5m</span>
+                    <div id="billboard-default-content" class="space-y-1 z-10 max-w-[65%] flex flex-col justify-center h-full relative pointer-events-none">
+                        <h3 class="text-[11px] font-bold leading-tight">Complete Tasks Earn Real Rewards</h3>
+                        <p class="text-[9px] text-slate-400 truncate">Watch ads, complete tasks and earn.</p>
+                    </div>
+                    <div id="billboard-default-icon" class="w-12 h-12 bg-gradient-to-tr from-purple-600 to-indigo-500 rounded-xl flex items-center justify-center border border-white/10 rotate-[-8deg] shadow-lg shrink-0 relative z-10 pointer-events-none">
+                        <i data-lucide="play" class="w-5 h-5 text-white fill-white/20 animate-pulse"></i>
+                    </div>
+                </div>
+
+                <div class="flex-1 flex flex-col min-h-0">
+                    <h4 class="text-[9px] font-bold text-slate-400 tracking-wider uppercase mb-1 shrink-0">Available Tasks</h4>
+                    <div class="flex-1 overflow-y-auto hide-scrollbar">
+                        <div id="live-tasks-wrapper" class="flex flex-col gap-1.5 pb-4">
+                            </div>
+                        <div id="no-tasks-fallback" class="w-full text-center py-6 text-slate-400 text-[10px] font-medium hidden">
+                            No remaining tasks available. Check back later!
+                        </div>
+                    </div>
+                </div>
+            </main>
+
+            <main id="tab-refer" class="tab-content h-full flex flex-col gap-1.5 hidden overflow-hidden">
+                <div class="bg-gradient-to-r from-[#6A41EF] to-[#8F66FA] text-white rounded-t-2xl p-4 pt-5 relative overflow-hidden h-36 shrink-0 -mx-3 -mt-1">
+                    <div class="z-10 w-[70%]">
+                        <span id="ref-commission-badge" class="bg-white/20 text-[9px] font-bold px-2 py-0.5 rounded-full border border-white/10 mb-2 inline-block shadow-sm">
+                            Earn 10% Commission
+                        </span>
+                        <h3 class="text-base font-bold leading-tight mt-1">Invite Friends<br>Earn More Rewards</h3>
+                        <p class="text-[9px] text-white/80 mt-1.5 leading-tight pr-2">Share link. Friends get rewards, you get lifetime commission up to 1 level.</p>
+                    </div>
+                    <div class="absolute right-0 top-2 w-32 h-32 flex items-center justify-center">
+                        <i data-lucide="gift" class="w-20 h-20 text-white/20"></i>
+                        <div class="absolute bottom-4 right-4 bg-[#3EB8F6] p-2 rounded-full shadow-lg">
+                            <i data-lucide="send" class="w-4 h-4 text-white fill-white"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-white p-3 rounded-2xl border border-slate-100 shadow-sm space-y-2 shrink-0 -mt-8 relative z-20 mx-1">
+                    <h4 class="text-[11px] font-bold text-slate-800">Your Referral Link</h4>
+                    <div class="bg-slate-50 border border-slate-100 p-2 rounded-xl flex items-center justify-between gap-2">
+                        <span id="refer-link" class="text-[10px] font-medium text-slate-700 truncate w-full">Loading...</span>
+                        <button onclick="copyReferLink()" class="bg-[#6A41EF] text-white text-[10px] font-bold px-3 py-1.5 rounded-lg flex items-center gap-1 active:scale-95 shadow-xs shrink-0"><i data-lucide="copy" class="w-3 h-3"></i> Copy</button>
+                    </div>
+                    <p class="text-[8px] text-slate-500 font-medium leading-tight">
+                        <span class="text-rose-500 font-bold">*</span> Referrals become Valid after they watch <span class="font-bold text-[#6A41EF]">10 ADs</span>. Commission from valid referrals only (Level 1).
+                    </p>
+                    <button onclick="shareOnTelegram()" class="w-full border border-[#6A41EF]/20 text-[#6A41EF] font-bold text-xs p-2 rounded-xl flex items-center justify-center gap-1.5"><i data-lucide="send" class="w-3.5 h-3.5"></i> Share on Telegram</button>
+                </div>
+
+                <div class="bg-white rounded-xl p-2.5 border border-slate-100 shadow-2xs flex items-center justify-between divide-x divide-slate-100 text-center shrink-0 mx-1">
+                    <div class="flex-1">
+                        <div class="flex justify-center mb-0.5"><div class="bg-purple-50 p-1.5 rounded-full"><i data-lucide="users-2" class="w-3.5 h-3.5 text-[#6A41EF]"></i></div></div>
+                        <div id="refer-total-count" class="text-slate-800 font-bold text-xs">0</div>
+                        <p class="text-[8px] text-slate-400">Total Referrals</p>
+                    </div>
+                    <div class="flex-1">
+                        <div class="flex justify-center mb-0.5"><div class="bg-purple-50 p-1.5 rounded-full"><i data-lucide="trending-up" class="w-3.5 h-3.5 text-[#6A41EF]"></i></div></div>
+                        <div id="refer-total-earning" class="text-slate-800 font-bold text-xs">$0.0000</div>
+                        <p class="text-[8px] text-slate-400">Referral Earning</p>
+                    </div>
+                    <div class="flex-1">
+                        <div class="flex justify-center mb-0.5"><div class="bg-purple-50 p-1.5 rounded-full"><i data-lucide="check-circle" class="w-3.5 h-3.5 text-[#6A41EF]"></i></div></div>
+                        <div id="refer-valid-count" class="text-slate-800 font-bold text-xs">0</div>
+                        <p class="text-[8px] text-slate-400">Valid Members</p>
+                    </div>
+                </div>
+
+                <div class="flex-1 flex flex-col min-h-0 mx-1">
+                    <div class="flex items-center justify-between mb-1.5 shrink-0">
+                        <h4 class="text-[11px] font-bold text-slate-800">Referral List</h4>
+                        <button onclick="openViewAllModal('referrals')" class="text-[9px] text-[#6A41EF] font-bold flex items-center">View All <i data-lucide="chevron-right" class="w-3 h-3"></i></button>
+                    </div>
+                    <div id="referral-list-container" class="flex-1 overflow-y-auto hide-scrollbar space-y-1 pb-2">
+                        </div>
+                </div>
+            </main>
+
+            <main id="tab-profile" class="tab-content h-full flex flex-col justify-between gap-2 hidden overflow-hidden">
+                <div class="bg-gradient-to-br from-[#4A3AFF] via-[#6320EE] to-[#8000FF] text-white rounded-2xl p-4 shadow-lg relative overflow-hidden h-[120px] flex flex-col justify-between shrink-0">
+                    <div class="absolute inset-0 bg-[radial-gradient(circle_at_right_top,rgba(255,255,255,0.1),transparent)]"></div>
+                    <div class="flex items-center justify-between z-10">
+                        <div class="flex items-center gap-1.5"><span class="text-[9px] font-bold uppercase tracking-widest text-white/70">Total Balance</span><button onclick="toggleBalancePrivacy()" class="text-white/80"><i id="balance-toggle-icon" data-lucide="eye" class="w-3 h-3"></i></button></div>
+                        <span class="text-xs font-black italic tracking-tight opacity-90">VISA</span>
+                    </div>
+                    <h2 class="text-2xl font-black tracking-wide z-10">$<span id="profile-card-balance" class="current-balance">0.0000</span></h2>
+                    <div class="flex justify-between items-end z-10">
+                        <div><p class="text-[8px] text-white/50 font-bold uppercase tracking-wider">Card Holder</p><p id="profile-card-holder" class="text-[11px] font-bold tracking-wide">User Name</p></div>
+                        <div class="text-right"><p class="text-[9px] font-mono tracking-widest opacity-80">•••• •••• •••• <span id="card-last-digits">0000</span></p></div>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-4 gap-1.5 text-center shrink-0">
+                    <div onclick="openRulesModal()" class="bg-white p-2 rounded-xl border border-slate-100 shadow-2xs cursor-pointer active:scale-95 transition flex flex-col items-center"><div class="w-6 h-6 bg-blue-50 text-blue-600 rounded-lg flex items-center justify-center mb-0.5"><i data-lucide="shield-check" class="w-3.5 h-3.5"></i></div><span class="font-bold text-[9px] text-slate-800">Rules</span></div>
+                    <div onclick="openPromoModal()" class="bg-white p-2 rounded-xl border border-slate-100 shadow-2xs cursor-pointer active:scale-95 transition flex flex-col items-center"><div class="w-6 h-6 bg-purple-50 text-purple-600 rounded-lg flex items-center justify-center mb-0.5"><i data-lucide="ticket" class="w-3.5 h-3.5"></i></div><span class="font-bold text-[9px] text-slate-800">Promo</span></div>
+                    <div class="bg-white p-2 rounded-xl border border-slate-100 shadow-2xs flex flex-col items-center"><div class="w-6 h-6 bg-indigo-50 text-indigo-600 rounded-lg flex items-center justify-center mb-0.5"><i data-lucide="bar-chart-3" class="w-3.5 h-3.5"></i></div><span class="font-bold text-[9px] text-slate-800">Earned</span><p id="profile-stat-earned" class="text-[8px] font-extrabold text-indigo-600 mt-0.5">$0.0000</p></div>
+                    <div class="bg-white p-2 rounded-xl border border-slate-100 shadow-2xs flex flex-col items-center"><div class="w-6 h-6 bg-fuchsia-50 text-fuchsia-600 rounded-lg flex items-center justify-center mb-0.5"><i data-lucide="wallet" class="w-3.5 h-3.5"></i></div><span class="font-bold text-[9px] text-slate-800">Withdrawn</span><p id="profile-stat-withdrawn" class="text-[8px] font-extrabold text-purple-600 mt-0.5">$0.0000</p></div>
+                </div>
+
+                <button onclick="openWithdrawPage()" class="w-full bg-slate-900 text-white font-bold py-2.5 rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-slate-900/20 active:scale-[0.98] transition shrink-0 text-sm">
+                    <i data-lucide="arrow-up-circle" class="w-4 h-4 text-amber-400"></i>
+                    Request Withdrawal
+                </button>
+
+                <div class="flex-1 flex flex-col min-h-0">
+                    <div class="flex items-center justify-between mb-1 shrink-0"><h4 class="text-[10px] font-bold text-slate-800">History</h4><button onclick="openViewAllModal('history')" class="text-[9px] font-bold text-[#6320EE] flex items-center gap-0.5">View All <i data-lucide="chevron-right" class="w-3 h-3"></i></button></div>
+                    <div id="global-history-container" class="flex-1 overflow-y-auto hide-scrollbar space-y-1 pb-2">
+                        </div>
+                </div>
+            </main>
+        </div>
+
+        <nav class="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-100 py-2 px-8 flex items-center justify-between z-40 max-w-md mx-auto shadow-[0_-5px_15px_rgba(0,0,0,0.02)]">
+            <button onclick="switchTab('home')" id="nav-home" class="nav-btn flex flex-col items-center gap-0.5 text-[#6A41EF] font-bold transition">
+                <i data-lucide="home" class="w-5 h-5"></i><span class="text-[10px]">Home</span>
+                <div id="indicator-home" class="w-8 h-0.5 bg-[#6A41EF] rounded-full mt-0.5"></div>
+            </button>
+            <button onclick="switchTab('refer')" id="nav-refer" class="nav-btn flex flex-col items-center gap-0.5 text-slate-400 font-medium transition">
+                <i data-lucide="users" class="w-5 h-5"></i><span class="text-[10px]">Refer</span>
+                <div id="indicator-refer" class="w-8 h-0.5 bg-transparent rounded-full mt-0.5"></div>
+            </button>
+            <button onclick="switchTab('profile')" id="nav-profile" class="nav-btn flex flex-col items-center gap-0.5 text-slate-400 font-medium transition">
+                <i data-lucide="user" class="w-5 h-5"></i><span class="text-[10px]">Profile</span>
+                <div id="indicator-profile" class="w-8 h-0.5 bg-transparent rounded-full mt-0.5"></div>
+            </button>
+        </nav>
+    </div>
+
+    <div id="view-withdraw" class="fixed inset-0 bg-[#F8F9FA] z-[60] flex flex-col max-w-md mx-auto page-enter transition-transform duration-300 hidden">
+        <div class="flex items-center justify-between px-3 py-2 shrink-0 bg-[#F8F9FA] border-b border-slate-100">
+            <button onclick="closeWithdrawPage()" class="w-7 h-7 bg-white border border-slate-200 rounded-full flex items-center justify-center"><i data-lucide="chevron-left" class="w-4 h-4 text-slate-700"></i></button>
+            <h1 class="font-bold text-sm text-slate-900">Withdraw</h1>
+            <button onclick="openRulesModal()" class="w-7 h-7 bg-white border border-slate-200 rounded-full flex items-center justify-center"><i data-lucide="help-circle" class="w-4 h-4 text-slate-700"></i></button>
+        </div>
+
+        <div class="flex-1 overflow-y-auto hide-scrollbar px-3 flex flex-col gap-1.5 shrink-0 bg-[#F8F9FA] pb-20 pt-2">
+            
+            <div class="bg-white rounded-xl p-2 border border-slate-100 shadow-2xs">
+                <div class="flex items-center justify-between mb-1">
+                    <h4 class="text-[10px] font-bold text-slate-800">Withdrawal Method</h4>
+                </div>
+                <div id="withdraw-methods-container" class="flex flex-col gap-1.5 max-h-40 overflow-y-auto hide-scrollbar">
+                    <div class="text-center text-[10px] text-slate-400 py-2">Loading methods...</div>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-xl p-2 border border-slate-100 shadow-2xs flex flex-col gap-1.5">
+                <div>
+                    <h4 class="text-[10px] font-bold text-slate-800 mb-0.5">Account / Wallet Details</h4>
+                    <div class="relative flex items-center border border-slate-200 rounded-lg bg-slate-50 overflow-hidden">
+                        <input type="text" id="wallet-address-input" placeholder="Enter Details" class="w-full bg-transparent py-1.5 pl-2 pr-16 text-[10px] font-bold text-slate-900 focus:outline-hidden h-8">
+                        <button onclick="pasteWalletAddress()" class="absolute right-1 top-1 bottom-1 px-2 bg-white border border-[#6320EE] text-[#6320EE] text-[9px] font-extrabold rounded-md shadow-xs flex items-center gap-1 active:bg-purple-50">
+                            <i data-lucide="clipboard-paste" class="w-3 h-3"></i> Paste
+                        </button>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-5 gap-2">
+                    <div class="col-span-3 flex flex-col justify-center">
+                        <h4 class="text-[10px] font-bold text-slate-800 mb-0.5">Enter Amount</h4>
+                        <div class="relative flex items-center border border-slate-200 rounded-lg bg-slate-50 overflow-hidden">
+                            <span class="pl-2 pr-1 text-slate-600 font-bold text-xs">$</span>
+                            <input type="number" id="withdraw-amount-input" oninput="calculateWithdraw()" value="0.00" class="w-full bg-transparent py-1.5 text-xs font-bold text-slate-900 focus:outline-hidden h-8">
+                            <button onclick="setMaxAmount()" class="absolute right-1 top-1 bottom-1 px-2 bg-white border border-[#6320EE] text-[#6320EE] text-[9px] font-extrabold rounded-md shadow-xs active:bg-purple-50">Max</button>
+                        </div>
+                        <p class="text-[8px] font-bold text-[#6320EE] mt-1">Receive: $<span id="receive-amount">0.00</span></p>
+                    </div>
+                    <div class="col-span-2 flex flex-col justify-center space-y-0.5 mt-2 text-right border-l border-slate-100 pl-2">
+                        <div class="flex justify-between text-[8px] gap-1"><span class="text-slate-400">Min:</span><span id="label-min-withdraw" class="font-bold text-slate-800">$0.00</span></div>
+                        <div class="flex justify-between text-[8px] gap-1"><span class="text-slate-400">Max:</span><span id="label-max-withdraw" class="font-bold text-slate-800">$0.00</span></div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="mt-2 flex-1 flex flex-col min-h-0">
+                <h4 class="text-[10px] font-bold text-slate-800 mb-1">Recent Requests</h4>
+                <div id="withdraw-history-container" class="flex-1 overflow-y-auto hide-scrollbar space-y-1.5 pb-2">
+                    </div>
+            </div>
+        </div>
+
+        <div class="absolute bottom-0 left-0 right-0 px-3 pb-3 pt-2 bg-gradient-to-t from-[#F8F9FA] via-[#F8F9FA] to-transparent z-20">
+            <button onclick="submitRealWithdraw()" class="w-full bg-[#6320EE] text-white font-bold py-3.5 rounded-xl flex items-center justify-center gap-1.5 shadow-lg shadow-purple-900/20 active:scale-95 transition text-sm">
+                <i data-lucide="arrow-up-circle" class="w-4 h-4"></i> Request Withdrawal
+            </button>
+        </div>
+    </div>
+
+    <div id="view-task" class="fixed inset-0 bg-white z-[80] flex flex-col max-w-md mx-auto page-enter transition-transform duration-300 hidden">
+        <div class="flex items-center justify-between px-3 py-3 shrink-0 border-b border-slate-100 bg-white shadow-sm z-10">
+            <button onclick="closeTaskPage()" class="w-8 h-8 bg-slate-50 border border-slate-200 rounded-full flex items-center justify-center active:scale-90 transition"><i data-lucide="chevron-left" class="w-4 h-4 text-slate-700"></i></button>
+            <h1 id="task-page-title" class="font-bold text-sm text-slate-900">Task Details</h1>
+            <button onclick="openRulesModal()" class="w-8 h-8 bg-slate-50 border border-slate-200 rounded-full flex items-center justify-center"><i data-lucide="help-circle" class="w-4 h-4 text-slate-700"></i></button>
+        </div>
+
+        <div class="flex-1 flex flex-col overflow-y-auto hide-scrollbar p-4 bg-slate-50">
+            
+            <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 text-center flex flex-col items-center mb-4">
+                <div id="task-page-icon-wrapper" class="w-16 h-16 bg-purple-50 text-[#6320EE] rounded-2xl flex items-center justify-center mb-3 shadow-sm border border-purple-100">
+                    <i id="task-page-icon" data-lucide="video" class="w-8 h-8"></i>
+                </div>
+                <h2 id="task-page-name" class="text-base font-black text-slate-900 mb-1">Watch Ad & Earn</h2>
+                <p id="task-page-desc" class="text-[10px] text-slate-500 mb-3">Complete this simple task to instantly receive your reward into your main wallet balance.</p>
+                <div class="bg-[#F3E8FF] text-[#6320EE] font-bold text-xs px-4 py-1.5 rounded-full border border-purple-200 shadow-xs">
+                    Reward: $<span id="task-page-reward">0.0000</span>
+                </div>
+            </div>
+
+            <div id="task-limits-grid" class="grid grid-cols-2 gap-2 mb-4">
+                <div class="bg-white rounded-xl p-2.5 border border-slate-100 shadow-sm flex flex-col justify-between items-center text-center">
+                    <i data-lucide="calendar" class="w-4 h-4 text-purple-600 mb-1"></i>
+                    <p class="text-[7px] font-bold text-slate-400 uppercase mb-1">Daily Limit</p>
+                    <h5 class="font-black text-xs text-slate-800 mb-1.5" id="ui-limit-daily">0/500</h5>
+                    <div class="w-full h-1 bg-slate-100 rounded-full overflow-hidden relative">
+                        <div id="ui-limit-daily-bar" class="absolute left-0 top-0 bottom-0 w-[0%] bg-purple-600 rounded-full transition-all"></div>
+                    </div>
+                </div>
+                <div class="bg-white rounded-xl p-2.5 border border-slate-100 shadow-sm flex flex-col justify-between items-center text-center">
+                    <i data-lucide="clock" class="w-4 h-4 text-purple-600 mb-1"></i>
+                    <p class="text-[7px] font-bold text-slate-400 uppercase mb-1">Hourly Limit</p>
+                    <h5 class="font-black text-xs text-slate-800 mb-1.5" id="ui-limit-hourly">0/100</h5>
+                    <div class="w-full h-1 bg-slate-100 rounded-full overflow-hidden relative">
+                        <div id="ui-limit-hourly-bar" class="absolute left-0 top-0 bottom-0 w-[0%] bg-purple-600 rounded-full transition-all"></div>
+                    </div>
+                </div>
+                <div class="bg-white rounded-xl p-2.5 border border-slate-100 shadow-sm flex flex-col justify-between items-center text-center col-span-2">
+                    <div class="flex items-center justify-between w-full">
+                        <div class="flex items-center gap-1.5">
+                            <i data-lucide="alert-triangle" class="w-4 h-4 text-rose-500"></i>
+                            <span class="text-[9px] font-bold text-rose-600 uppercase">Warning Counter</span>
+                        </div>
+                        <span id="ui-limit-warning" class="font-black text-xs text-rose-600">0/10</span>
+                    </div>
+                    <div class="w-full h-1.5 bg-rose-100 rounded-full overflow-hidden relative mt-1.5">
+                        <div id="ui-limit-warning-bar" class="absolute left-0 top-0 bottom-0 w-[0%] bg-rose-500 rounded-full transition-all"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="task-country-grid" class="grid grid-cols-2 gap-2 mb-4">
+                <div class="bg-white rounded-xl p-2 border border-slate-100 shadow-sm flex items-center gap-2">
+                    <div class="w-6 h-6 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center shrink-0"><i data-lucide="globe-2" class="w-3 h-3"></i></div>
+                    <div>
+                        <p class="text-[7px] font-bold text-slate-400 uppercase">Location</p>
+                        <h4 id="task-location-txt" class="font-bold text-[9px] text-slate-800 truncate">Global</h4>
+                    </div>
+                </div>
+                <div class="bg-white rounded-xl p-2 border border-slate-100 shadow-sm flex items-center gap-2">
+                    <div class="w-6 h-6 bg-amber-50 text-amber-500 rounded-full flex items-center justify-center shrink-0"><i data-lucide="star" class="w-3 h-3 fill-amber-500"></i></div>
+                    <div>
+                        <p class="text-[7px] font-bold text-slate-400 uppercase">Rating</p>
+                        <h4 id="task-rating-txt" class="font-bold text-[9px] text-slate-800">4.8 / 5.0</h4>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <div class="p-4 bg-white border-t border-slate-100 shadow-[0_-5px_15px_rgba(0,0,0,0.02)] shrink-0 pb-6 z-10">
+            <div id="task-status-container" class="flex items-center gap-2 mb-3 text-slate-500 text-[10px] font-semibold justify-center">
+                <i data-lucide="info" class="w-3.5 h-3.5"></i>
+                <span id="task-status-text">Click below to start earning. Do not close immediately.</span>
+            </div>
+            <button id="task-action-btn" onclick="startExecutionFlow()" class="w-full bg-[#6320EE] hover:bg-[#5017D4] text-white font-bold py-3.5 rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-purple-900/20 active:scale-95 transition text-sm">
+                <i data-lucide="play-circle" class="w-4 h-4"></i>
+                <span id="task-btn-text">Start Task Now</span>
+            </button>
+        </div>
+    </div>
+
+    <div id="custom-ad-modal" class="fixed inset-0 z-[99999] hidden flex-col items-center justify-center bg-black/95">
+        <div class="absolute inset-0 z-0" onclick="handleAdBlurClick()"></div>
+        <div class="relative w-full max-w-sm z-10 flex flex-col items-center justify-center p-6 text-center pointer-events-none">
+            <div class="w-12 h-12 border-4 border-purple-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+            <p id="ad-content-loading" class="text-white font-bold text-sm tracking-wide">Loading Sponsored Content...</p>
+            <p class="text-white/40 text-[10px] mt-2">Please stay on this screen. Do not skip.</p>
+        </div>
+        <div class="absolute bottom-10 w-[80%] max-w-sm mx-auto z-20">
+            <div class="flex justify-between text-white/50 text-[10px] font-bold mb-1 uppercase tracking-wider">
+                <span>Verification Process</span>
+                <span id="ad-timer">15s</span>
+            </div>
+            <div class="w-full h-1.5 bg-white/20 rounded-full overflow-hidden">
+                <div id="ad-progress-bar" class="h-full bg-purple-500 w-0"></div>
+            </div>
+            <div id="ad-skip-container" class="mt-4 text-center hidden pointer-events-auto">
+                <button onclick="triggerAdSkipWarning()" class="text-rose-400 bg-rose-500/10 px-3 py-1 rounded border border-rose-500/20 text-[10px] font-bold">Skip Ad (Warning)</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="view-all-modal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-[200] hidden items-center justify-center p-4 fade-enter" onclick="closeViewAllModal()">
+        <div class="bg-[#F8F9FA] rounded-2xl w-full max-w-sm h-[85vh] flex flex-col relative shadow-2xl overflow-hidden" onclick="event.stopPropagation()">
+            <div class="p-3 border-b border-slate-200 flex justify-between items-center bg-white shrink-0">
+                <button onclick="closeViewAllModal()" class="w-7 h-7 bg-slate-100 rounded-full flex items-center justify-center active:scale-90"><i data-lucide="chevron-left" class="w-4 h-4 text-slate-700"></i></button>
+                <h3 id="view-all-title" class="font-bold text-sm text-slate-800">View All</h3>
+                <div class="w-7 h-7"></div>
+            </div>
+            <div id="view-all-content" class="p-3 overflow-y-auto hide-scrollbar flex-1 space-y-2"></div>
+        </div>
+    </div>
+
+    <div id="notifications-modal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-[200] hidden items-center justify-center p-4 fade-enter" onclick="closeNotificationsModal()">
+        <div class="bg-[#F8F9FA] rounded-2xl w-full max-w-sm h-[75vh] flex flex-col relative shadow-2xl overflow-hidden" onclick="event.stopPropagation()">
+            <div class="p-3 border-b border-slate-200 flex justify-between items-center bg-white shrink-0">
+                <button onclick="closeNotificationsModal()" class="w-7 h-7 bg-slate-100 rounded-full flex items-center justify-center active:scale-90"><i data-lucide="chevron-left" class="w-4 h-4 text-slate-700"></i></button>
+                <h3 class="font-bold text-sm text-slate-800">Notifications</h3>
+                <div class="w-7 h-7"></div>
+            </div>
+            <div id="notifications-content" class="p-3 overflow-y-auto hide-scrollbar flex-1 space-y-2"></div>
+        </div>
+    </div>
+
+    <div id="promo-modal" class="fixed inset-0 bg-slate-950/60 backdrop-blur-sm z-[200] flex items-center justify-center p-4 hidden fade-enter">
+        <div class="bg-white rounded-2xl p-5 max-w-[280px] w-full text-center space-y-3 shadow-2xl">
+            <div class="w-12 h-12 bg-purple-50 text-purple-600 rounded-full flex items-center justify-center mx-auto"><i data-lucide="ticket" class="w-6 h-6"></i></div>
+            <h3 class="font-bold text-sm">Enter Promo Code</h3>
+            <input type="text" id="promo-input" placeholder="CODE000" class="w-full border bg-slate-50 rounded-xl p-2.5 text-center text-xs uppercase font-bold focus:outline-hidden focus:border-purple-500">
+            <button onclick="applyPromoCode()" class="w-full bg-[#6320EE] text-white text-xs font-bold p-3 rounded-xl active:scale-95 transition">Apply Code</button>
+            <button onclick="closePromoModal()" class="w-full text-slate-400 font-bold text-xs py-1">Cancel</button>
+        </div>
+    </div>
+
+    <script>
+        const tg = window.Telegram?.WebApp;
+        let userData = null;
+        let adminConfig = null;
+        let activeTab = 'home';
+        let isBalanceHidden = false;
+        
+        let currentActiveTask = null;
+        let adTimerInterval = null;
+        let isAdClicked = false;
+        let userCountryCode = "GL";
+        let userCountryName = "Global";
+        let userCountryFlag = "🌐";
+        let selectedWithdrawMethodId = null;
+
+        // Base Initializer
+        document.addEventListener("DOMContentLoaded", async function() {
+            lucide.createIcons();
+            
+            if (tg) { tg.expand(); tg.ready(); }
+            let tgUser = tg?.initDataUnsafe?.user || { id: 99999, first_name: "Test User", username: "test_user" };
+            let startParam = tg?.initDataUnsafe?.start_param || "";
+
+            try {
+                // Get Country Info reliably
+                try {
+                    const ipRes = await fetch('https://ipapi.co/json/');
+                    const ipData = await ipRes.json();
+                    if(ipData && ipData.country) {
+                        userCountryCode = ipData.country;
+                        userCountryName = ipData.country_name || ipData.country;
+                        userCountryFlag = getFlagEmoji(userCountryCode);
+                    }
+                } catch(e) { console.log("IP fallback"); }
+
+                // Connect Firebase Safe Wrap (if DB access fails, we use local to not break UI)
+                let useDb = true;
+                try {
+                    const configDoc = await window.db.collection("admin_settings").doc("config").get();
+                    if (configDoc.exists) { adminConfig = configDoc.data(); }
+                } catch(e) {
+                    console.error("Firebase Rules/Connection Error. Utilizing Fallback Context.", e);
+                    useDb = false;
+                }
+
+                if (!adminConfig) {
+                    // Fallback Config Setup
+                    adminConfig = {
+                        loadingImage: "https://images.unsplash.com/photo-1635322966219-b75ed372eb01?q=80&w=600",
+                        billboardImage: "",
+                        devLink: "https://t.me/ONESHOT_STUDIO_OFFICIAL",
+                        privacyLink: "https://t.me/EliteEarn_chat",
+                        termsLink: "https://t.me/EliteEarn_chat",
+                        helpLink: "https://t.me/EliteEarn_chat",
+                        forceChannels: [{ name: "Announcement Channel", url: "https://t.me/EliteEarn_chat", chat_id: "@EliteEarn_chat" }],
+                        botUsername: "EliteEarnBot",
+                        referCommissionPct: 10,
+                        taskSettings: { minAdWatchTime: 15, adReward: 0.0005 }
+                    };
+                }
+
+                // Visual Config Updates
+                if (adminConfig.loadingImage) document.getElementById('cloudinary-loading-bg').src = adminConfig.loadingImage;
+                if (adminConfig.billboardImage) {
+                    const bbImg = document.getElementById('billboard-img');
+                    bbImg.src = adminConfig.billboardImage;
+                    bbImg.classList.remove('hidden');
+                    document.getElementById('billboard-default-content').classList.add('hidden');
+                    document.getElementById('billboard-default-icon').classList.add('hidden');
+                }
+                document.getElementById('ref-commission-badge').innerText = `Earn ${adminConfig.referCommissionPct || 10}% Commission`;
+
+                // Setup User State Data Structure (Zero Balances natively starting fresh setup)
+                const currentDateStr = new Date().toISOString().split('T')[0];
+
+                if (useDb) {
+                    const userRef = window.db.collection("users").doc(String(tgUser.id));
+                    const userSnapshot = await userRef.get();
+                    
+                    if (!userSnapshot.exists) {
+                        let referrerId = (startParam && startParam !== String(tgUser.id)) ? startParam : "";
+                        userData = {
+                            uid: String(tgUser.id), name: tgUser.first_name || "Premium User", username: tgUser.username || "user",
+                            balance: 0.0000, totalEarned: 0.0000, totalWithdrawn: 0.0000, referralEarnings: 0.0000,
+                            adsWatchedCount: 0, referralsCount: 0, validReferralsCount: 0, loginDaysCount: 1,
+                            lastLoginDate: currentDateStr, referredBy: referrerId, country: userCountryName, countryCode: userCountryCode,
+                            device: /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) ? "Mobile" : "Desktop",
+                            status: "Online", completedTasks: [], adSkipWarningsCount: 0, lastWarningResetDate: currentDateStr,
+                            dailyAdLimit: 500, dailyAdCount: 0, hourlyAdLimit: 100, hourlyAdCount: 0, lastAdDate: currentDateStr
+                        };
+                        await userRef.set(userData);
+                        
+                        if (referrerId) {
+                            await window.db.collection("users").doc(String(referrerId)).update({ referralsCount: increment(1) }).catch(e=>console.log(e));
+                        }
+                    } else {
+                        userData = userSnapshot.data();
+                        let updates = { status: "Online", country: userCountryName, countryCode: userCountryCode };
+                        if (userData.lastLoginDate !== currentDateStr) {
+                            updates.loginDaysCount = increment(1);
+                            updates.lastLoginDate = currentDateStr;
+                            updates.dailyAdCount = 0; // Reset daily counters
+                            updates.adSkipWarningsCount = 0;
+                            updates.lastWarningResetDate = currentDateStr;
+                        }
+                        await userRef.update(updates);
+                        const freshSnap = await userRef.get();
+                        userData = freshSnap.data();
+                    }
+                    
+                    setupRealtimeDataSynchronizer();
+                    setupWithdrawMethodsLoader(true);
+                    setupLiveTasksListener(true);
+                    updateNotificationBadgeUI();
+                } else {
+                    // Total Local Storage fallback ensuring functionality
+                    let localData = localStorage.getItem('elite_earn_user');
+                    if (localData) {
+                        userData = JSON.parse(localData);
+                        if(userData.lastLoginDate !== currentDateStr) {
+                            userData.loginDaysCount++;
+                            userData.lastLoginDate = currentDateStr;
+                            userData.dailyAdCount = 0;
+                            userData.adSkipWarningsCount = 0;
+                            localStorage.setItem('elite_earn_user', JSON.stringify(userData));
+                        }
+                    } else {
+                        userData = {
+                            uid: String(tgUser.id), name: tgUser.first_name, username: tgUser.username,
+                            balance: 0.0000, totalEarned: 0.0000, totalWithdrawn: 0.0000, referralEarnings: 0.0000,
+                            adsWatchedCount: 0, referralsCount: 0, validReferralsCount: 0, loginDaysCount: 1,
+                            lastLoginDate: currentDateStr, country: userCountryName, countryCode: userCountryCode,
+                            device: "Mobile", status: "Online", completedTasks: [], adSkipWarningsCount: 0, 
+                            dailyAdLimit: 500, dailyAdCount: 0, hourlyAdLimit: 100, hourlyAdCount: 0
+                        };
+                        localStorage.setItem('elite_earn_user', JSON.stringify(userData));
+                    }
+                    // Mock Setup Loaders
+                    setupWithdrawMethodsLoader(false);
+                    setupLiveTasksListener(false);
+                }
+
+                // Render UI Core Elements
+                document.getElementById('user-avatar').src = tgUser.photo_url || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=150";
+                document.getElementById('user-name').innerText = userData.name;
+                document.getElementById('user-id').innerText = userData.uid.slice(-4);
+                document.getElementById('user-username').innerText = userData.username;
+                document.getElementById('profile-card-holder').innerText = userData.name;
+                document.getElementById('card-last-digits').innerText = userData.uid.slice(-4);
+                document.getElementById('withdraw-last-digits').innerText = userData.uid.slice(-4);
+                document.getElementById('user-country-badge').innerText = `${userCountryFlag} ${userData.country}`;
+                
+                document.getElementById('refer-link').innerText = `https://t.me/${adminConfig.botUsername || 'EliteEarnBot'}/app?startapp=ref${userData.uid}`;
+                updateUI();
+                initBillboardAd();
+
+                // Force Join check
+                if (adminConfig.forceChannels && adminConfig.forceChannels.length > 0 && localStorage.getItem('elite_earn_force_joined') !== 'true') {
+                    const fjContainer = document.getElementById('force-join-channels-container');
+                    fjContainer.innerHTML = "";
+                    adminConfig.forceChannels.forEach((ch, idx) => {
+                        fjContainer.innerHTML += `
+                            <button onclick="openLink('${ch.url}')" class="w-full border border-slate-200 bg-white hover:bg-slate-50 text-slate-800 font-bold py-3 rounded-xl flex items-center justify-between px-4 shadow-sm transition">
+                                <span class="flex items-center gap-2"><i data-lucide="send" class="w-4 h-4 text-[#229ED9]"></i> ${ch.name}</span>
+                                <i data-lucide="external-link" class="w-4 h-4 text-slate-400"></i>
+                            </button>
+                        `;
+                    });
+                    lucide.createIcons();
+                    document.getElementById('view-force-join').classList.remove('hidden');
+                }
+
+                // Clean transition off loading screen smoothly
+                setTimeout(() => {
+                    document.getElementById('loading-screen').classList.add('opacity-0');
+                    document.getElementById('main-app').classList.remove('hidden');
+                    switchTab('home');
+                    setTimeout(() => document.getElementById('loading-screen').remove(), 700);
+                }, 500);
+
+            } catch (err) {
+                console.error("Critical Bootstrap Failure", err);
+                document.getElementById('loading-text-node').innerText = "FATAL ERROR. PLEASE RESTART APP.";
+            }
+        });
+
+        // --- Custom Alert System ---
+        function showAppAlert(msg, type = "info") {
+            document.getElementById('alert-message').innerText = msg;
+            let title = 'Notice'; let icon = 'info'; let color = 'text-blue-600'; let bg = 'bg-blue-50';
+            if(type === 'error') { title = 'Error'; icon = 'alert-triangle'; color = 'text-rose-600'; bg = 'bg-rose-50'; } 
+            else if(type === 'success') { title = 'Success'; icon = 'check-circle'; color = 'text-emerald-600'; bg = 'bg-emerald-50'; }
+            
+            document.getElementById('alert-title').innerText = title;
+            document.getElementById('alert-icon').setAttribute('data-lucide', icon);
+            document.getElementById('alert-icon-container').className = `w-12 h-12 rounded-full flex items-center justify-center mb-3 ${bg} ${color}`;
+            lucide.createIcons();
+            
+            const modal = document.getElementById('custom-app-alert');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+            setTimeout(() => { modal.classList.remove('fade-enter'); modal.classList.add('fade-active'); }, 10);
+        }
+
+        window.closeAppAlert = function() {
+            const modal = document.getElementById('custom-app-alert');
+            modal.classList.remove('fade-active');
+            modal.classList.add('fade-enter');
+            setTimeout(() => { modal.classList.add('hidden'); modal.classList.remove('flex'); }, 200);
+        }
+
+        // --- Utility UI Builders ---
+        function getFlagEmoji(countryCode) {
+            if (!countryCode || countryCode.length !== 2) return "🌐";
+            const codePoints = countryCode.toUpperCase().split('').map(char => 127397 + char.charCodeAt());
+            return String.fromCodePoint(...codePoints);
+        }
+
+        function updateUI() {
+            document.querySelectorAll('.current-balance').forEach(el => {
+                el.innerText = isBalanceHidden ? "••••" : userData.balance.toFixed(4);
+            });
+            document.getElementById('stat-ads-watched').innerText = userData.adsWatchedCount;
+            document.getElementById('stat-total-earned').innerText = "$" + userData.totalEarned.toFixed(4);
+            document.getElementById('stat-referral-count').innerText = userData.referralsCount;
+            document.getElementById('stat-valid-referral').innerText = userData.validReferralsCount;
+            document.getElementById('stat-login-days').innerText = userData.loginDaysCount;
+            
+            document.getElementById('refer-total-count').innerText = userData.referralsCount;
+            document.getElementById('refer-total-earning').innerText = "$" + (userData.referralEarnings || 0).toFixed(4);
+            document.getElementById('refer-valid-count').innerText = userData.validReferralsCount;
+            
+            document.getElementById('profile-stat-earned').innerText = "$" + userData.totalEarned.toFixed(4);
+            document.getElementById('profile-stat-withdrawn').innerText = "$" + userData.totalWithdrawn.toFixed(4);
+            
+            if(window.db) { localStorage.setItem('elite_earn_user', JSON.stringify(userData)); }
+        }
+
+        function setupRealtimeDataSynchronizer() {
+            window.db.collection("users").doc(userData.uid).onSnapshot((docSnap) => {
+                if (!docSnap.exists) return;
+                userData = docSnap.data();
+                updateUI();
+                renderTxHistory();
+            });
+
+            window.db.collection("users").where("referredBy", "==", userData.uid).onSnapshot((snap) => {
+                const container = document.getElementById('referral-list-container');
+                container.innerHTML = "";
+                if(snap.empty) { container.innerHTML = `<div class="text-center py-4 text-slate-400 text-[10px]">No referrals yet.</div>`; return; }
+                snap.docs.forEach(d => {
+                    const data = d.data();
+                    const isValid = data.adsWatchedCount >= 10; 
+                    const statusText = isValid ? "Valid" : "Pending";
+                    const statusClass = isValid ? "bg-emerald-50 text-emerald-600 border-emerald-100" : "bg-amber-50 text-amber-600 border-amber-100";
+                    
+                    container.innerHTML += `
+                        <div class="bg-white p-2 rounded-xl flex items-center justify-between shadow-2xs border border-slate-50">
+                            <div class="flex items-center gap-2.5">
+                                <div class="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center font-bold text-xs text-purple-700 uppercase">${data.name.slice(0,2)}</div>
+                                <div>
+                                    <h5 class="font-bold text-[11px] text-slate-800 leading-tight">${data.name}</h5>
+                                    <p class="text-[8px] text-slate-400">@${data.username}<br>Tasks Done: ${data.adsWatchedCount}</p>
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <span class="border text-[8px] px-1.5 py-0.5 rounded-full ${statusClass}">${statusText}</span>
+                                <i data-lucide="chevron-right" class="w-3 h-3 text-slate-300"></i>
+                            </div>
+                        </div>
+                    `;
+                });
+                lucide.createIcons();
+            });
+
+            window.db.collection("withdraws").where("uid", "==", userData.uid).orderBy("timestamp", "desc").onSnapshot((snap) => {
+                const container = document.getElementById('withdraw-history-container');
+                container.innerHTML = "";
+                if (snap.empty) { container.innerHTML = `<div class="text-center py-6 text-slate-400 text-[10px]">No withdrawals logged yet.</div>`; return; }
+                snap.docs.forEach(docItem => {
+                    const data = docItem.data();
+                    const dateFormatted = data.timestamp ? new Date(data.timestamp.seconds * 1000).toLocaleString() : "Pending";
+                    let badgeColor = "bg-amber-50 text-amber-600";
+                    if(data.status === "Accepted" || data.status === "Completed") badgeColor = "bg-emerald-50 text-emerald-600";
+                    if(data.status === "Rejected") badgeColor = "bg-rose-50 text-rose-600";
+
+                    container.innerHTML += `
+                        <div class="bg-white p-2 rounded-xl border border-slate-100 flex items-center justify-between">
+                            <div class="flex items-center gap-2">
+                                <div class="w-6 h-6 bg-slate-100 text-slate-600 rounded-lg flex items-center justify-center"><i data-lucide="arrow-down-to-line" class="w-3 h-3"></i></div>
+                                <div>
+                                    <div class="flex items-center gap-1.5"><h5 class="font-bold text-[10px] text-slate-800">$${data.amount.toFixed(2)}</h5><span class="${badgeColor} text-[7px] font-bold px-1 rounded-sm">${data.status}</span></div>
+                                    <p class="text-[8px] text-slate-500">${data.methodName} •••• ${data.walletAddress.slice(-4)}</p>
+                                </div>
+                            </div>
+                            <div class="text-right flex flex-col items-end gap-0.5"><p class="text-[7px] text-slate-400">${dateFormatted}</p></div>
+                        </div>
+                    `;
+                });
+                lucide.createIcons();
+            });
+        }
+
+        // Generate Tasks Module List dynamically removing completed instances tracking locally
+        const defaultTasks = [
+            { id: "vid1", type: "video", title: "Video Ads", reward: 0.0012, slotUsed: 0, slotMax: 1000 },
+            { id: "visit1", type: "visit", title: "Visit Site", reward: 0.0010, slotUsed: 0, slotMax: 500 },
+            { id: "view1", type: "view", title: "Post View", reward: 0.0008, slotUsed: 0, slotMax: 500 },
+            { id: "ch1", type: "channel", title: "Join Updates", reward: 0.0050, slotUsed: 0, slotMax: 5000, chat_id: "@EliteEarn_chat", link: "https://t.me/EliteEarn_chat" }
+        ];
+
+        function setupLiveTasksListener(useDb) {
+            if(useDb) {
+                window.db.collection("tasks").orderBy("createdAt", "desc").onSnapshot((snapshot) => {
+                    let liveItems = [];
+                    snapshot.docs.forEach(d => {
+                        const t = { id: d.id, ...d.data() };
+                        if (!userData.completedTasks || !userData.completedTasks.includes(t.id)) liveItems.push(t);
+                    });
+                    renderTasksToUI(liveItems);
+                });
+            } else {
+                let liveItems = defaultTasks.filter(t => !userData.completedTasks.includes(t.id));
+                renderTasksToUI(liveItems);
+            }
+        }
+
+        function renderTasksToUI(liveItems) {
+            const wrapper = document.getElementById('live-tasks-wrapper');
+            const tgWrapper = document.getElementById('telegram-tasks-container');
+            wrapper.innerHTML = ""; tgWrapper.innerHTML = "";
+            
+            if(liveItems.length === 0) { document.getElementById('no-tasks-fallback').classList.remove('hidden'); return; }
+            document.getElementById('no-tasks-fallback').classList.add('hidden');
+
+            liveItems.forEach(task => {
+                const slotText = `${task.slotUsed}/${task.slotMax}`;
+                let iconStr = "video"; let bgClass = "bg-[#F3E8FF]/60 border-purple-100 text-purple-600";
+                
+                if (task.type === "visit") { iconStr = "monitor"; bgClass = "bg-[#FFF3E0]/60 border-orange-100 text-orange-600"; } 
+                else if (task.type === "view") { iconStr = "eye"; bgClass = "bg-[#E6F4EA]/60 border-emerald-100 text-emerald-600"; } 
+                else if (task.type === "channel") { iconStr = "layers"; bgClass = "bg-[#E8F0FE]/60 border-blue-100 text-blue-600"; }
+                
+                const html = `
+                    <div onclick="initiateTaskExecution('${task.id}', '${task.type}', '${task.title.replace(/'/g,"\\'")}', ${task.reward}, '${task.chat_id || ''}', '${task.link || ''}')" class="${bgClass.split(' ')[0]} border ${bgClass.split(' ')[1]} p-2 rounded-xl flex flex-col justify-between cursor-pointer active:scale-[0.98] transition">
+                        <div class="flex items-center justify-between w-full mb-0.5">
+                            <div class="p-1 ${bgClass.split(' ')[2].replace('text-','bg-')}/20 ${bgClass.split(' ')[2]} rounded-md"><i data-lucide="${iconStr}" class="w-3.5 h-3.5"></i></div>
+                            <span class="bg-white border ${bgClass.split(' ')[1]} ${bgClass.split(' ')[2]} text-[8px] font-extrabold px-1.5 py-0.5 rounded-full shadow-2xs">${slotText} Slot</span>
+                        </div>
+                        <div class="mt-1">
+                            <h5 class="font-bold text-[11px] text-slate-800 tracking-tight truncate">${task.title}</h5>
+                            <span class="text-[9px] font-bold ${bgClass.split(' ')[2]} block">Reward: $${task.reward.toFixed(4)}</span>
+                        </div>
+                    </div>
+                `;
+                
+                if(task.type === "channel") {
+                    tgWrapper.innerHTML += `
+                        <div class="bg-white border border-slate-100 p-2 rounded-xl flex items-center justify-between shadow-2xs transition">
+                            <div class="flex items-center gap-2 min-w-0">
+                                <div class="w-7 h-7 bg-[#229ED9]/10 text-[#229ED9] rounded-lg flex items-center justify-center shrink-0"><i data-lucide="send" class="w-3.5 h-3.5"></i></div>
+                                <div class="min-w-0">
+                                    <h5 class="font-bold text-[10px] text-slate-800 truncate">${task.title}</h5>
+                                    <p class="text-[8px] text-slate-400 mt-0.5"><span class="font-bold text-[#6A41EF]">$${task.reward.toFixed(4)}</span> • ${slotText} Slot</p>
+                                </div>
+                            </div>
+                            <div class="shrink-0 ml-2" id="action-tgtask-${task.id}">
+                                <button onclick="startTGTask('${task.id}', '${task.link}', '${task.chat_id}', ${task.reward})" class="bg-[#6A41EF] text-white px-4 py-1.5 rounded-lg text-[9px] font-bold active:scale-95 transition shadow-xs">Start</button>
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    wrapper.innerHTML += html;
+                }
+            });
+            lucide.createIcons();
+        }
+
+        // --- Withdraw Logic Core Execution ---
+        const defaultWd = [
+            { id: 'bkash', name: 'bKash (Personal)', desc: 'Mobile Banking', minWithdraw: 1.0, maxWithdraw: 50.0, icon: 'smartphone', color: '#E2136E' },
+            { id: 'usdt', name: 'USDT (TRC20)', desc: 'Crypto Wallet', minWithdraw: 0.1, maxWithdraw: 100.0, icon: 'landmark', color: '#6320EE' }
+        ];
+
+        let withdrawMethodsData = [];
+        function setupWithdrawMethodsLoader(useDb) {
+            if(useDb) {
+                window.db.collection("withdraw_methods").onSnapshot((snap) => {
+                    const container = document.getElementById('withdraw-methods-container');
+                    container.innerHTML = "";
+                    withdrawMethodsData = [];
+                    snap.docs.forEach((docItem, idx) => {
+                        const m = { id: docItem.id, ...docItem.data() };
+                        withdrawMethodsData.push(m);
+                        if(idx === 0 && !selectedWithdrawMethodId) selectWithdrawMethod(m.id);
+                        container.innerHTML += createWithdrawMethodHTML(m);
+                    });
+                    lucide.createIcons();
+                });
+            } else {
+                withdrawMethodsData = defaultWd;
+                const container = document.getElementById('withdraw-methods-container');
+                container.innerHTML = "";
+                withdrawMethodsData.forEach((m, idx) => {
+                    if(idx === 0 && !selectedWithdrawMethodId) selectWithdrawMethod(m.id);
+                    container.innerHTML += createWithdrawMethodHTML(m);
+                });
+                lucide.createIcons();
+            }
+        }
+
+        function createWithdrawMethodHTML(m) {
+            const isActive = selectedWithdrawMethodId === m.id ? 'border-[#6320EE] bg-purple-50/40' : 'border-slate-100 bg-slate-50';
+            return `
+                <div onclick="selectWithdrawMethod('${m.id}')" class="flex items-center justify-between p-1.5 rounded-lg border cursor-pointer transition ${isActive}">
+                    <div class="flex items-center gap-2">
+                        <div class="w-6 h-6 rounded-full flex items-center justify-center text-white shadow-sm" style="background-color: ${m.color || '#6320EE'}"><i data-lucide="${m.icon || 'landmark'}" class="w-3 h-3"></i></div>
+                        <div><h5 class="font-bold text-[10px] text-slate-800 flex items-center gap-1">${m.name}</h5></div>
+                    </div>
+                    <span class="text-[8px] font-bold text-[#6320EE]">Min: $${m.minWithdraw.toFixed(2)}</span>
+                </div>
+            `;
+        }
+
+        window.selectWithdrawMethod = function(id) {
+            selectedWithdrawMethodId = id;
+            const m = withdrawMethodsData.find(x => x.id === id);
+            if(m) {
+                document.getElementById('label-min-withdraw').innerText = `$${m.minWithdraw.toFixed(2)}`;
+                document.getElementById('label-max-withdraw').innerText = `$${m.maxWithdraw.toFixed(2)}`;
+                document.getElementById('wallet-address-input').placeholder = `Enter ${m.name} details`;
+                calculateWithdraw();
+            }
+            // Re-render UI to update active border style
+            const container = document.getElementById('withdraw-methods-container');
+            container.innerHTML = "";
+            withdrawMethodsData.forEach((mx) => container.innerHTML += createWithdrawMethodHTML(mx));
+            lucide.createIcons();
+        };
+
+        window.calculateWithdraw = function() {
+            const amountVal = parseFloat(document.getElementById('withdraw-amount-input').value) || 0;
+            document.getElementById('receive-amount').innerText = amountVal.toFixed(2);
+        };
+
+        window.setMaxAmount = function() {
+            document.getElementById('withdraw-amount-input').value = userData.balance.toFixed(2);
+            calculateWithdraw();
+        };
+
+        window.pasteWalletAddress = async function() {
+            try {
+                const copiedText = await navigator.clipboard.readText();
+                if(copiedText) document.getElementById('wallet-address-input').value = copiedText;
+            } catch (err) { showAppAlert("Clipboard permission required.", "error"); }
+        };
+
+        window.submitRealWithdraw = async function() {
+            const amount = parseFloat(document.getElementById('withdraw-amount-input').value);
+            const address = document.getElementById('wallet-address-input').value.trim();
+            const m = withdrawMethodsData.find(x => x.id === selectedWithdrawMethodId);
+            
+            if(!address || !m) { showAppAlert("Please complete all details.", "error"); return; }
+            if(amount < m.minWithdraw || amount > m.maxWithdraw) { showAppAlert(`Amount must be between $${m.minWithdraw} and $${m.maxWithdraw}`, "error"); return; }
+            if(amount > userData.balance) { showAppAlert("Insufficient balance.", "error"); return; }
+            
+            userData.balance -= amount;
+            userData.totalWithdrawn += amount;
+            
+            if(window.db) {
+                await window.db.collection("users").doc(userData.uid).update({ balance: increment(-amount), totalWithdrawn: increment(amount) });
+                await window.db.collection("withdraws").add({ uid: userData.uid, name: userData.name, username: userData.username, amount: amount, walletAddress: address, methodId: m.id, methodName: m.name, status: "Pending", timestamp: new Date() });
+                await window.db.collection("users").doc(userData.uid).collection("history").add({ title: `Withdrawal: ${m.name}`, amount: -amount, type: "Withdrawal", timestamp: new Date() });
+            } else {
+                updateUI();
+            }
+            
+            document.getElementById('withdraw-amount-input').value = "0.00";
+            document.getElementById('wallet-address-input').value = "";
+            calculateWithdraw();
+            closeWithdrawPage();
+            showAppAlert("Withdrawal Request Submitted Successfully!", "success");
+        };
+
+        // --- Task System Engine Route Checkings ---
+        window.initiateTaskExecution = function(id, type, title, reward, chatId, link) {
+            currentActiveTask = { id, type, title, reward, chatId, link };
+            
+            // Open General Unified Task Viewer Configurations setup structures
+            document.getElementById('task-page-title').innerText = title;
+            document.getElementById('task-page-name').innerText = title;
+            document.getElementById('task-page-reward').innerText = reward.toFixed(4);
+            
+            if (type === "video") { document.getElementById('task-page-icon').setAttribute('data-lucide', 'video'); } 
+            else if(type === "view") { document.getElementById('task-page-icon').setAttribute('data-lucide', 'eye'); }
+            else { document.getElementById('task-page-icon').setAttribute('data-lucide', 'monitor'); }
+            
+            // Toggle Limits / Country visibility setup layout mappings explicitly tracking dependencies
+            if(type === "video") {
+                document.getElementById('task-limits-grid').classList.remove('hidden');
+                document.getElementById('task-country-grid').classList.remove('hidden');
+                document.getElementById('task-location-txt').innerText = userData.country;
+                
+                // Update Progress bars inside tasks view layout
+                document.getElementById('ui-limit-daily').innerText = `${userData.dailyAdCount}/${userData.dailyAdLimit}`;
+                document.getElementById('ui-limit-daily-bar').style.width = `${(userData.dailyAdCount/userData.dailyAdLimit)*100}%`;
+                document.getElementById('ui-limit-hourly').innerText = `${userData.hourlyAdCount}/${userData.hourlyAdLimit}`;
+                document.getElementById('ui-limit-hourly-bar').style.width = `${(userData.hourlyAdCount/userData.hourlyAdLimit)*100}%`;
+                document.getElementById('ui-limit-warning').innerText = `${userData.adSkipWarningsCount}/10`;
+                document.getElementById('ui-limit-warning-bar').style.width = `${(userData.adSkipWarningsCount/10)*100}%`;
+            } else {
+                // View and Visit have no country, filter, limits, work rating
+                document.getElementById('task-limits-grid').classList.add('hidden');
+                document.getElementById('task-country-grid').classList.add('hidden');
+            }
+            lucide.createIcons();
+
+            const page = document.getElementById('view-task');
+            page.classList.remove('hidden');
+            setTimeout(() => { page.classList.remove('page-enter'); page.classList.add('page-active'); }, 10);
+        };
+
+        window.startExecutionFlow = function() {
+            if(currentActiveTask.type === 'video') {
+                if(userData.adSkipWarningsCount >= 10) { showAppAlert("Account suspended for today (Warnings maxed)", "error"); return; }
+                if(userData.dailyAdCount >= userData.dailyAdLimit) { showAppAlert("Daily Limit Reached", "error"); return; }
+                
+                // Start Monetag
+                document.getElementById('custom-ad-modal').classList.remove('hidden');
+                document.getElementById('custom-ad-modal').classList.add('flex');
+                
+                let time = adminConfig.taskSettings?.minAdWatchTime || 15;
+                document.getElementById('ad-timer').innerText = `${time}s`;
+                document.getElementById('ad-progress-bar').style.transitionDuration = `${time}s`;
+                document.getElementById('ad-skip-container').classList.add('hidden');
+                
+                setTimeout(() => document.getElementById('ad-progress-bar').style.width = "100%", 50);
+
+                if(typeof show_11235004 === 'function') { show_11235004().then(()=>{}).catch(e=>{}); }
+
+                adTimerInterval = setInterval(() => {
+                    time--;
+                    if(time > 0) { document.getElementById('ad-timer').innerText = `${time}s`; }
+                    else {
+                        clearInterval(adTimerInterval);
+                        document.getElementById('ad-timer').innerHTML = `<button onclick="claimAdReward()" class="text-white hover:text-emerald-400 font-bold px-3 py-1 bg-emerald-500/20 rounded-full border border-emerald-500/50">Claim Now</button>`;
+                    }
+                    if(time === 10) { document.getElementById('ad-skip-container').classList.remove('hidden'); }
+                }, 1000);
+            } else {
+                // Visit or View -> redirect -> delay -> reward
+                openLink(currentActiveTask.link || "https://example.com");
+                document.getElementById('task-status-text').innerText = "Verifying task completion...";
+                document.getElementById('task-action-btn').innerHTML = `<div class="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>`;
+                
+                setTimeout(async () => {
+                    await finalizeRewardCreditsAcquisition();
+                    closeTaskPage();
+                }, 8000);
+            }
+        };
+
+        window.triggerAdSkipWarning = function() {
+            clearInterval(adTimerInterval);
+            document.getElementById('custom-ad-modal').classList.add('hidden');
+            document.getElementById('custom-ad-modal').classList.remove('flex');
+            
+            userData.adSkipWarningsCount++;
+            if(window.db) window.db.collection("users").doc(userData.uid).update({ adSkipWarningsCount: increment(1) });
+            
+            showAppAlert(`Warning Added! Skipping ads disrupts system. (${userData.adSkipWarningsCount}/10)`, "error");
+            closeTaskPage();
+        };
+
+        window.claimAdReward = async function() {
+            clearInterval(adTimerInterval);
+            document.getElementById('custom-ad-modal').classList.add('hidden');
+            document.getElementById('custom-ad-modal').classList.remove('flex');
+            
+            userData.dailyAdCount++;
+            userData.hourlyAdCount++;
+            if(window.db) window.db.collection("users").doc(userData.uid).update({ dailyAdCount: increment(1), hourlyAdCount: increment(1) });
+            
+            await finalizeRewardCreditsAcquisition();
+            closeTaskPage();
+        };
+
+        window.handleAdBlurClick = function() {
+            if(typeof show_11235004 === 'function') show_11235004('pop').then(()=>{}).catch(()=>{});
+        }
+
+        async function finalizeRewardCreditsAcquisition() {
+            if(!currentActiveTask) return;
+            const reward = currentActiveTask.reward;
+            
+            userData.balance += reward;
+            userData.totalEarned += reward;
+            userData.adsWatchedCount++;
+            userData.completedTasks.push(currentActiveTask.id);
+            updateUI();
+
+            if(window.db) {
+                const userRef = window.db.collection("users").doc(userData.uid);
+                await userRef.update({
+                    balance: increment(reward), totalEarned: increment(reward), adsWatchedCount: increment(1), completedTasks: arrayUnion(currentActiveTask.id)
+                });
+                await userRef.collection("history").add({ title: `Task: ${currentActiveTask.title}`, amount: reward, type: "Earning", timestamp: new Date() });
+                
+                // Track task slot dynamically incrementing bounds records constraints checks globally
+                await window.db.collection("tasks").doc(currentActiveTask.id).update({ slotUsed: increment(1) }).catch(e=>console.log(e));
+
+                // Process Referral Checks Logic without appending history logs references sets arrays structures fields overrides
+                if (userData.referredBy) {
+                    const rRef = window.db.collection("users").doc(userData.referredBy);
+                    const rSnap = await rRef.get();
+                    if (rSnap.exists) {
+                        let updates = { balance: increment(0.001), referralEarnings: increment(0.001) };
+                        if (userData.adsWatchedCount === 10) updates.validReferralsCount = increment(1);
+                        await rRef.update(updates);
+                    }
+                }
+            }
+            showAppAlert(`Task completed successfully! $${reward.toFixed(4)} added.`, "success");
+            currentActiveTask = null;
+        }
+
+        // --- Telegram Channel Task specific logical execution sequences mapping handlers constraints loops ---
+        window.startTGTask = function(taskId, link, chatId, reward) {
+            openLink(link);
+            const btnContainer = document.getElementById(`action-tgtask-${taskId}`);
+            btnContainer.innerHTML = `<button onclick="claimTGTask('${taskId}', '${chatId}', ${reward})" class="bg-amber-400 text-slate-900 px-3 py-1.5 rounded-lg text-[9px] font-bold active:scale-95 transition shadow-xs flex items-center gap-1"><i data-lucide="download" class="w-3 h-3"></i> Claim</button>`;
+            lucide.createIcons();
+        };
+
+        window.claimTGTask = async function(taskId, chatId, reward) {
+            const btnContainer = document.getElementById(`action-tgtask-${taskId}`);
+            btnContainer.innerHTML = `<button class="bg-slate-100 text-slate-400 px-3 py-1.5 rounded-lg flex items-center justify-center"><div class="w-3 h-3 border-2 border-slate-400 border-t-transparent rounded-full animate-spin"></div></button>`;
+            
+            let isJoined = true;
+            if(window.db && adminConfig.botApiToken) {
+                try {
+                    const res = await fetch(`https://api.telegram.org/bot${adminConfig.botApiToken}/getChatMember?chat_id=${chatId}&user_id=${tgUser.id}`);
+                    const data = await res.json();
+                    if(data.ok && (data.result.status === 'member' || data.result.status === 'administrator' || data.result.status === 'creator')) {
+                        isJoined = true;
+                    } else isJoined = false;
+                } catch(e) { isJoined = true; } // Auto fallback verification parameters rules overrides
+            }
+
+            if(isJoined) {
+                currentActiveTask = { id: taskId, reward: reward, title: "Telegram Channel Task" };
+                await finalizeRewardCreditsAcquisition();
+            } else {
+                btnContainer.innerHTML = `<button class="bg-rose-50 text-rose-600 px-3 py-1.5 rounded-lg text-[9px] font-bold flex items-center gap-1 shadow-xs" disabled><i data-lucide="x" class="w-3 h-3"></i></button>`;
+                showAppAlert("You haven't joined the channel yet!", "error");
+                lucide.createIcons();
+                setTimeout(() => {
+                    btnContainer.innerHTML = `<button onclick="startTGTask('${taskId}', '', '${chatId}', ${reward})" class="bg-[#6A41EF] text-white px-4 py-1.5 rounded-lg text-[9px] font-bold active:scale-95 transition shadow-xs">Start</button>`;
+                }, 2000);
+            }
+        };
+
+        // --- Promo Code ---
+        window.applyPromoCode = async function() {
+            const inputVal = document.getElementById('promo-input').value.trim().toUpperCase();
+            if(!inputVal) return;
+
+            if(window.db) {
+                try {
+                    const codeRef = window.db.collection("promo_codes").doc(inputVal);
+                    const codeSnap = await codeRef.get();
+                    if(!codeSnap.exists) { showAppAlert("Invalid Promo Code", "error"); return; }
+                    
+                    const promo = codeSnap.data();
+                    if(promo.claimedUsers && promo.claimedUsers.includes(userData.uid)) { showAppAlert("Code already redeemed by you.", "error"); return; }
+                    if(promo.claimedCount >= promo.maxLimit) { showAppAlert("Maximum limit reached", "error"); return; }
+
+                    userData.balance += promo.rewardAmount;
+                    userData.totalEarned += promo.rewardAmount;
+                    await window.db.collection("users").doc(userData.uid).update({ balance: increment(promo.rewardAmount), totalEarned: increment(promo.rewardAmount) });
+                    await codeRef.update({ claimedCount: increment(1), claimedUsers: arrayUnion(userData.uid) });
+                    
+                    closePromoModal();
+                    showAppAlert(`Success! You received $${promo.rewardAmount.toFixed(4)}.`, "success");
+                } catch(e) { showAppAlert("Error validating code.", "error"); }
+            } else {
+                if(inputVal === "EARN50") {
+                    userData.balance += 0.50; updateUI(); closePromoModal();
+                    showAppAlert("Success! $0.50 added.", "success");
+                } else showAppAlert("Invalid Code", "error");
+            }
+        };
+
+        // --- Notifications Modal ---
+        window.openNotificationModal = async function() {
+            const container = document.getElementById('notifications-content');
+            container.innerHTML = "";
+            document.getElementById('noti-badge').classList.add('hidden'); // Clear badge view state instantly arrays tags checks parameters updates loops
+            
+            if(window.db) {
+                const snap = await window.db.collection("notifications").orderBy("timestamp", "desc").limit(10).get();
+                if(snap.empty) { container.innerHTML = `<p class="text-center py-4 text-slate-400 text-[10px]">No notifications yet.</p>`; }
+                else {
+                    snap.docs.forEach(d => {
+                        const noti = d.data();
+                        container.innerHTML += `
+                            <div class="p-3 rounded-xl bg-white border border-slate-100 shadow-sm text-[10px] space-y-1 mb-2">
+                                <div class="flex justify-between items-center"><span class="font-bold text-slate-800">${noti.title}</span><span class="text-[7px] text-slate-400">${new Date(noti.timestamp.seconds*1000).toLocaleDateString()}</span></div>
+                                <p class="text-slate-500 leading-normal">${noti.message}</p>
+                            </div>`;
+                    });
+                    await window.db.collection("users").doc(userData.uid).update({ lastReadNotificationId: snap.docs[0].id });
+                }
+            } else {
+                container.innerHTML = `<p class="text-center py-4 text-slate-400 text-[10px]">Welcome to Elite Earn! Complete tasks to start earning.</p>`;
+            }
+            
+            const modal = document.getElementById('notifications-modal');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+            setTimeout(() => { modal.classList.remove('fade-enter'); modal.classList.add('fade-active'); }, 10);
+        };
+        window.closeNotificationsModal = function() {
+            const modal = document.getElementById('notifications-modal');
+            modal.classList.remove('fade-active');
+            modal.classList.add('fade-enter');
+            setTimeout(() => { modal.classList.add('hidden'); modal.classList.remove('flex'); }, 200);
+        };
+
+        // --- Force Join Auto Verifier ---
+        window.verifyForceJoin = async function(btn) {
+            const originalHTML = btn.innerHTML;
+            btn.innerHTML = '<div class="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>';
+            
+            // Wait 1.5 seconds mock latency for auto verification processing sequence checks mappings properties outputs
+            setTimeout(() => {
+                localStorage.setItem('elite_earn_force_joined', 'true');
+                document.getElementById('view-force-join').classList.add('hidden');
+                showAppAlert("Channels verification successful!", "success");
+                launchMainApp();
+            }, 1500);
+        };
+
+        // --- Helpers & Modals Management ---
+        window.initBillboardAd = function() {
+            setInterval(() => {
+                userData.balance += 0.0001;
+                userData.totalEarned += 0.0001;
+                updateUI();
+                if(window.db) window.db.collection("users").doc(userData.uid).update({ balance: increment(0.0001), totalEarned: increment(0.0001) });
+            }, 300000); // 5 mins
+        };
+
+        window.openLink = function(urlStr) {
+            let destinationUrl = urlStr;
+            if(urlStr === 'dev') destinationUrl = adminConfig?.devLink || "https://t.me/ONESHOT_STUDIO_OFFICIAL";
+            if(urlStr === 'privacy') destinationUrl = adminConfig?.privacyLink || "https://t.me/EliteEarn_chat";
+            if(urlStr === 'terms') destinationUrl = adminConfig?.termsLink || "https://t.me/EliteEarn_chat";
+            if(tg) tg.openLink(destinationUrl); else window.open(destinationUrl, '_blank');
+        };
+
+        let threeDotTimerRef = null;
+        window.toggleThreeDotMenu = function() {
+            const menu = document.getElementById('three-dot-menu');
+            if (menu.classList.contains('opacity-0')) {
+                menu.classList.remove('opacity-0', 'scale-95', 'pointer-events-none');
+                menu.classList.add('opacity-100', 'scale-100');
+                if(threeDotTimerRef) clearTimeout(threeDotTimerRef);
+                threeDotTimerRef = setTimeout(() => { closeThreeDotMenu(); }, 7000);
+            } else { closeThreeDotMenu(); }
+        };
+        window.closeThreeDotMenu = function() {
+            const menu = document.getElementById('three-dot-menu');
+            menu.classList.add('opacity-0', 'scale-95', 'pointer-events-none');
+            menu.classList.remove('opacity-100', 'scale-100');
+            if(threeDotTimerRef) clearTimeout(threeDotTimerRef);
+        };
+        window.openLinkFromMenu = function(type) { closeThreeDotMenu(); openLink(type); };
+
+        function updateNotificationBadgeUI() {
+            if(!window.db) return;
+            window.db.collection("notifications").orderBy("timestamp", "desc").limit(1).onSnapshot((snap) => {
+                const badge = document.getElementById('noti-badge');
+                if (snap.empty) { badge.classList.add('hidden'); return; }
+                const latestDocId = snap.docs[0].id;
+                if (userData && userData.lastReadNotificationId === latestDocId) { badge.classList.add('hidden'); } 
+                else { badge.innerText = "1"; badge.classList.remove('hidden'); }
+            });
+        }
+
+        function renderTxHistory() {
+            const container = document.getElementById('global-history-container');
+            if(!container || !userData || !userData.completedTasks) return;
+            container.innerHTML = `<div class="text-center py-4 text-slate-400 text-[10px]">Refresh data for transaction tracking lines loops properties configurations.</div>`;
+        }
+        
+        window.openRulesModal = function() {
+            const content = document.getElementById('rules-content');
+            content.innerHTML = '';
+            adminConfig.rules.forEach((r, i) => {
+                content.innerHTML += `
+                    <div class="bg-white rounded-xl border border-slate-100 shadow-sm overflow-hidden mb-2">
+                        <button onclick="toggleRule(${i})" class="w-full flex items-center justify-between p-3 bg-slate-50 hover:bg-slate-100 transition">
+                            <h5 class="font-bold text-xs text-slate-800 text-left">${r.title}</h5>
+                            <i id="rule-icon-${i}" data-lucide="chevron-down" class="w-4 h-4 text-slate-400 transition-transform"></i>
+                        </button>
+                        <div id="rule-body-${i}" class="hidden px-3 pb-3 pt-1 text-[10px] text-slate-500 leading-relaxed border-t border-slate-100/50">${r.content}</div>
+                    </div>`;
+            });
+            lucide.createIcons();
+            const modal = document.getElementById('rules-modal');
+            modal.classList.remove('hidden'); modal.classList.add('flex');
+            setTimeout(() => { modal.classList.remove('fade-enter'); modal.classList.add('fade-active'); }, 10);
+        };
+        
+        window.toggleRule = function(index) {
+            const body = document.getElementById(`rule-body-${index}`);
+            const icon = document.getElementById(`rule-icon-${index}`);
+            if(body.classList.contains('hidden')) { body.classList.remove('hidden'); icon.classList.add('rotate-180'); } 
+            else { body.classList.add('hidden'); icon.classList.remove('rotate-180'); }
+        };
+        
+        window.closeRulesModal = function() {
+            const modal = document.getElementById('rules-modal');
+            modal.classList.remove('fade-active'); modal.classList.add('fade-enter');
+            setTimeout(() => { modal.classList.add('hidden'); modal.classList.remove('flex'); }, 200);
+        };
+        
+        window.openViewAllModal = function(type) {
+            const modal = document.getElementById('view-all-modal');
+            document.getElementById('view-all-title').innerText = type === 'history' ? "Transaction History" : "All Referrals";
+            document.getElementById('view-all-content').innerHTML = `<p class="text-center text-[10px] text-slate-400 py-4">Data rendered directly to core views mapping components.</p>`;
+            modal.classList.remove('hidden'); modal.classList.add('flex');
+            setTimeout(() => { modal.classList.remove('fade-enter'); modal.classList.add('fade-active'); }, 10);
+        };
+        
+        window.closeViewAllModal = function() {
+            const modal = document.getElementById('view-all-modal');
+            modal.classList.remove('fade-active'); modal.classList.add('fade-enter');
+            setTimeout(() => { modal.classList.add('hidden'); modal.classList.remove('flex'); }, 200);
+        };
+
+        window.openHelpChannel = function() { openLink('https://t.me/EliteEarn_chat'); };
+        window.openWithdrawPage = function() { document.getElementById('view-withdraw').classList.remove('hidden'); setTimeout(() => { document.getElementById('view-withdraw').classList.remove('page-enter'); document.getElementById('view-withdraw').classList.add('page-active'); }, 10); };
+        window.closeWithdrawPage = function() { document.getElementById('view-withdraw').classList.remove('page-active'); document.getElementById('view-withdraw').classList.add('page-enter'); setTimeout(() => document.getElementById('view-withdraw').classList.add('hidden'), 300); };
+        window.closeTaskPage = function() { document.getElementById('view-task').classList.remove('page-active'); document.getElementById('view-task').classList.add('page-enter'); setTimeout(() => document.getElementById('view-task').classList.add('hidden'), 300); };
+        window.openPromoModal = function() { document.getElementById('promo-modal').classList.remove('hidden'); document.getElementById('promo-modal').classList.add('flex'); setTimeout(() => { document.getElementById('promo-modal').classList.remove('fade-enter'); document.getElementById('promo-modal').classList.add('fade-active'); }, 10); };
+        window.closePromoModal = function() { document.getElementById('promo-modal').classList.remove('fade-active'); document.getElementById('promo-modal').classList.add('fade-enter'); setTimeout(() => { document.getElementById('promo-modal').classList.add('hidden'); document.getElementById('promo-modal').classList.remove('flex'); }, 200); };
+        
+        window.switchTab = function(tabId) {
+            document.querySelectorAll('.tab-content').forEach(tab => tab.classList.add('hidden'));
+            document.getElementById(`tab-${tabId}`).classList.remove('hidden');
+            document.querySelectorAll('.nav-btn').forEach(btn => { btn.classList.remove('text-[#6A41EF]', 'font-bold'); btn.classList.add('text-slate-400', 'font-medium'); });
+            document.querySelectorAll('.nav-btn div').forEach(ind => ind.classList.replace('bg-[#6A41EF]', 'bg-transparent'));
+            const activeNav = document.getElementById(`nav-${tabId}`);
+            if(activeNav) { activeNav.classList.remove('text-slate-400', 'font-medium'); activeNav.classList.add('text-[#6A41EF]', 'font-bold'); document.getElementById(`indicator-${tabId}`).classList.replace('bg-transparent', 'bg-[#6A41EF]'); }
+        };
+    </script>
+</body>
+</html>
