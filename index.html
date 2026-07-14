@@ -1,0 +1,1374 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Elite Earn - Premium Telegram Mini App</title>
+    
+    <script src='//libtl.com/sdk.js' data-zone='11235004' data-sdk='show_11235004'></script>
+    
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    
+    <style>
+        body {
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .hide-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .hide-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+        .page-enter { transform: translateX(100%); }
+        .page-active { transform: translateX(0); }
+    </style>
+</head>
+<body class="bg-[#F8F9FA] text-slate-800 antialiased select-none h-screen overflow-hidden flex flex-col relative">
+
+    <div id="loading-screen" class="fixed inset-0 bg-[#070012] z-[9999] flex flex-col items-center justify-between transition-opacity duration-700 overflow-hidden">
+        <div class="w-full relative mt-auto flex flex-col items-center z-10 px-8 pb-10">
+            <p id="loading-text-node" class="text-purple-400 text-[10px] font-bold tracking-[0.15em] mb-3 drop-shadow-md">CONNECTING TO SECURE SERVER...</p>
+            <div class="w-full max-w-[280px] h-[5px] bg-white/10 rounded-full overflow-hidden relative">
+                <div id="loading-progress" class="h-full bg-gradient-to-r from-purple-500 via-pink-500 to-cyan-400 rounded-full w-0 transition-all duration-300 ease-out shadow-[0_0_12px_#a855f7]"></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="force-join-modal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-xs z-[9000] flex items-center justify-center p-4 hidden">
+        <div class="bg-white rounded-2xl p-5 w-full max-w-xs text-center space-y-4 shadow-xl">
+            <div class="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center mx-auto text-[#6A41EF]">
+                <i data-lucide="send" class="w-6 h-6 fill-[#6A41EF]/10"></i>
+            </div>
+            <div class="space-y-1">
+                <h3 class="text-sm font-black text-slate-900">Join Official Channel</h3>
+                <p class="text-[10px] text-slate-500">You must subscribe to our official channel to access tasks and claim rewards.</p>
+            </div>
+            <div class="space-y-2 pt-2">
+                <button onclick="redirectToOfficialChannel()" class="w-full bg-[#6A41EF] text-white font-bold text-xs p-2.5 rounded-xl flex items-center justify-center gap-1.5 shadow-sm active:scale-98 transition">
+                    <i data-lucide="external-link" class="w-3.5 h-3.5"></i> Join Channel
+                </button>
+                <button onclick="verifyChannelMembership()" class="w-full bg-slate-100 text-slate-700 font-bold text-xs p-2.5 rounded-xl hover:bg-slate-200 transition">
+                    Check Membership
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div id="custom-app-alert" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[9999] hidden items-center justify-center p-4 fade-enter">
+        <div class="bg-white rounded-2xl w-full max-w-[280px] p-5 text-center shadow-2xl flex flex-col items-center">
+            <div id="alert-icon-container" class="w-12 h-12 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center mb-3">
+                <i id="alert-icon" data-lucide="info" class="w-6 h-6"></i>
+            </div>
+            <h3 id="alert-title" class="font-black text-lg text-slate-900 mb-1">Notice</h3>
+            <p id="alert-message" class="text-xs text-slate-500 mb-5 font-medium leading-relaxed">Message goes here</p>
+            <button onclick="closeAppAlert()" class="w-full bg-[#6320EE] hover:bg-[#5017D4] text-white font-bold py-3 rounded-xl active:scale-95 transition shadow-lg shadow-purple-900/20 text-sm">OK</button>
+        </div>
+    </div>
+
+    <div id="restricted-screen" class="fixed inset-0 bg-[#070012] z-[9999] flex flex-col items-center justify-center hidden">
+        <div class="w-24 h-24 bg-red-900/30 text-red-500 rounded-full flex items-center justify-center mb-4 border border-red-500/50 shadow-[0_0_30px_rgba(239,68,68,0.4)]">
+            <i data-lucide="shield-ban" class="w-12 h-12"></i>
+        </div>
+        <h1 class="text-white text-3xl font-black tracking-widest text-center">ACCOUNT<br>RESTRICTED</h1>
+        <p class="text-red-400 font-bold mt-4 tracking-wider text-xs">SUSPICIOUS ACTIVITY DETECTED</p>
+        <div class="mt-6 bg-white/5 border border-white/10 rounded-xl p-4 w-[80%] max-w-sm text-center">
+            <p class="text-[10px] text-slate-400 uppercase tracking-widest mb-1">Reason</p>
+            <p id="restricted-reason" class="text-white text-xs font-bold leading-relaxed">Illegal Balance Modification</p>
+        </div>
+        <p class="text-[9px] text-slate-500 mt-8">Contact Support to appeal.</p>
+    </div>
+
+    <div id="main-app" class="max-w-md mx-auto w-full flex-1 flex flex-col justify-between hidden h-full relative">
+        
+        <header class="flex items-center justify-between px-3 py-2 shrink-0 bg-[#F8F9FA] z-20">
+            <div class="flex items-center gap-2">
+                <img id="user-avatar" src="https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=150" alt="Avatar" class="w-10 h-10 rounded-full border-2 border-white shadow-xs object-cover">
+                <div>
+                    <div class="flex items-center gap-1">
+                        <span id="user-name" class="font-bold text-sm tracking-tight text-slate-900">Loading User</span>
+                        <i data-lucide="badge-check" class="w-3.5 h-3.5 fill-blue-500 text-white"></i>
+                    </div>
+                    <p class="text-[9px] text-slate-500 font-medium">ID: <span id="user-id">00000000</span> &nbsp;|&nbsp; @<span id="user-username">username</span></p>
+                </div>
+            </div>
+            <div class="flex items-center gap-1">
+                <button onclick="toggleNotificationsView()" class="relative bg-white p-1.5 rounded-full border border-slate-100 shadow-2xs transition">
+                    <i data-lucide="bell" class="w-4 h-4 text-slate-600"></i>
+                    <span id="noti-badge" class="absolute -top-1 -right-1 min-w-[14px] h-[14px] bg-rose-500 text-white text-[8px] font-black rounded-full flex items-center justify-center px-1 hidden">0</span>
+                </button>
+                <button onclick="toggleThreeDotMenu()" class="bg-white p-1.5 rounded-full border border-slate-100 shadow-2xs transition relative">
+                    <i data-lucide="ellipsis-vertical" class="w-4 h-4 text-slate-600"></i>
+                </button>
+            </div>
+        </header>
+
+        <div id="three-dot-menu" class="absolute right-3 top-12 bg-white border border-slate-100 rounded-xl shadow-lg z-50 p-1.5 w-40 flex flex-col gap-1 transition-all duration-200 opacity-0 scale-95 pointer-events-none">
+            <button onclick="openLinkFromMenu('dev')" class="flex items-center gap-2 text-left px-2 py-1.5 text-[10px] font-bold text-slate-700 hover:bg-slate-50 rounded-lg">
+                <i data-lucide="code-2" class="w-3.5 h-3.5 text-blue-500"></i> &lt;/&gt; Developer
+            </button>
+            <button onclick="openLinkFromMenu('privacy')" class="flex items-center gap-2 text-left px-2 py-1.5 text-[10px] font-bold text-slate-700 hover:bg-slate-50 rounded-lg">
+                <i data-lucide="shield" class="w-3.5 h-3.5 text-purple-500"></i> Privacy Policy
+            </button>
+            <button onclick="openLinkFromMenu('terms')" class="flex items-center gap-2 text-left px-2 py-1.5 text-[10px] font-bold text-slate-700 hover:bg-slate-50 rounded-lg">
+                <i data-lucide="file-text" class="w-3.5 h-3.5 text-amber-500"></i> Terms of Service
+            </button>
+        </div>
+
+        <div class="flex-1 overflow-hidden relative w-full pb-16">
+            
+            <main id="tab-home" class="tab-content h-full flex flex-col justify-between gap-1.5 px-3 overflow-y-auto hide-scrollbar pb-4">
+                <div class="bg-gradient-to-br from-purple-600 via-indigo-600 to-blue-700 text-white rounded-2xl p-3 shadow-md relative overflow-hidden flex flex-col justify-between h-[115px] shrink-0 mt-1">
+                    <div class="absolute right-3 top-3 bg-white/10 p-3 rounded-xl backdrop-blur-xs border border-white/5">
+                        <i data-lucide="wallet" class="w-8 h-8 text-white/30"></i>
+                    </div>
+                    <div>
+                        <p class="text-[9px] font-bold uppercase tracking-wider text-white/70">Total Balance</p>
+                        <h2 class="text-2xl font-black tracking-tight mt-0">$<span class="current-balance">0.0000</span></h2>
+                    </div>
+                    
+                    <div class="bg-white rounded-xl p-1 flex items-center justify-between text-slate-700 text-[10px] font-semibold shadow-xs z-10">
+                        <button onclick="openHelpChannel()" class="flex-1 flex items-center justify-center gap-1 py-1 hover:bg-slate-50 rounded-lg transition"><i data-lucide="help-circle" class="w-3 h-3 text-slate-600"></i> Help</button>
+                        <div class="h-3 w-[1px] bg-slate-200"></div>
+                        <button onclick="openWithdrawPage()" class="flex-1 flex items-center justify-center gap-1 py-1 hover:bg-slate-50 rounded-lg transition"><i data-lucide="download" class="w-3 h-3 text-slate-600"></i> Withdraw</button>
+                        <div class="h-3 w-[1px] bg-slate-200"></div>
+                        <button onclick="switchTab('refer')" class="flex-1 flex items-center justify-center gap-1 py-1 hover:bg-slate-50 rounded-lg transition"><i data-lucide="user-plus" class="w-3 h-3 text-slate-600"></i> Invite</button>
+                        <div class="h-3 w-[1px] bg-slate-200"></div>
+                        <button onclick="openPromoModal()" class="flex-1 flex items-center justify-center gap-1 py-1 hover:bg-slate-50 rounded-lg transition"><i data-lucide="ticket" class="w-3 h-3 text-slate-600"></i> Code</button>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-xl p-1.5 border border-slate-100 shadow-2xs flex items-center justify-between divide-x divide-slate-100 text-center shrink-0">
+                    <div class="flex-1 flex flex-col items-center justify-center"><div class="flex items-center gap-0.5"><i data-lucide="check-circle" class="w-3 h-3 text-purple-600 shrink-0"></i><span id="stat-ads-watched" class="font-extrabold text-[11px] text-slate-800">0</span></div><p class="text-[8px] text-slate-400 font-bold">TASKS DONE</p></div>
+                    <div class="flex-1 flex flex-col items-center justify-center"><div class="flex items-center gap-0.5"><i data-lucide="trending-up" class="w-3 h-3 text-emerald-600 shrink-0"></i><span id="stat-total-earned" class="font-extrabold text-[11px] text-slate-800">$0.0000</span></div><p class="text-[8px] text-slate-400 font-bold">TOTAL EARNED</p></div>
+                    <div class="flex-1 flex flex-col items-center justify-center"><div class="flex items-center gap-0.5"><i data-lucide="users" class="w-3 h-3 text-orange-500 shrink-0"></i><span id="stat-referral-count" class="font-extrabold text-[11px] text-slate-800">0</span></div><p class="text-[8px] text-slate-400 font-bold">REFERRAL</p></div>
+                    <div class="flex-1 flex flex-col items-center justify-center"><div class="flex items-center gap-0.5"><i data-lucide="check-square" class="w-3 h-3 text-blue-500 shrink-0"></i><span id="stat-valid-referral" class="font-extrabold text-[11px] text-slate-800">0</span></div><p class="text-[8px] text-slate-400 font-bold">VALID REF.</p></div>
+                    <div class="flex-1 flex flex-col items-center justify-center"><div class="flex items-center gap-0.5"><i data-lucide="calendar" class="w-3 h-3 text-indigo-500 shrink-0"></i><span id="stat-login-days" class="font-extrabold text-[11px] text-slate-800">0</span></div><p class="text-[8px] text-slate-400 font-bold">DAYS</p></div>
+                </div>
+
+                <div id="billboard-container" class="bg-gradient-to-r from-[#1E1145] via-[#2D1B67] to-[#1F124A] text-white rounded-xl p-3 relative overflow-hidden flex items-center justify-between h-[85px] shrink-0 shadow-xs cursor-pointer">
+                    <span class="absolute top-2 left-2 z-20 bg-white/10 text-[8px] font-bold text-purple-100 px-1.5 py-0.5 rounded-full border border-white/5 backdrop-blur-md shadow-sm">+$0.0001 / 5m</span>
+                    <div id="billboard-default-content" class="space-y-1 z-10 max-w-[65%] flex flex-col justify-center h-full relative pointer-events-none mt-2">
+                        <h3 class="text-[11px] font-bold leading-tight">Complete Tasks Earn Real Rewards</h3>
+                        <p class="text-[9px] text-slate-400 truncate">Stay on app, watch ads and earn.</p>
+                    </div>
+                    <div id="billboard-default-icon" class="w-12 h-12 bg-gradient-to-tr from-purple-600 to-indigo-500 rounded-xl flex items-center justify-center border border-white/10 rotate-[-8deg] shadow-lg shrink-0 relative z-10 pointer-events-none">
+                        <i data-lucide="play" class="w-5 h-5 text-white fill-white/20 animate-pulse"></i>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-1.5 shrink-0 mt-1">
+                    <div onclick="openTaskPage('Video AD', 0.0005, 'video')" class="bg-[#F3E8FF]/60 border border-purple-100 p-2 rounded-xl flex flex-col justify-between cursor-pointer active:scale-[0.98] transition h-16">
+                        <div class="flex items-center justify-between w-full mb-0.5">
+                            <div class="p-1 bg-purple-100 text-purple-600 rounded-md"><i data-lucide="video" class="w-3.5 h-3.5"></i></div>
+                        </div>
+                        <div><h5 class="font-bold text-[11px] text-slate-800 leading-tight">Video AD</h5><span class="text-[8px] font-bold text-purple-700 block">Reward: $0.0005</span></div>
+                    </div>
+                    <div onclick="openTaskPage('Post View', 0.0008, 'view')" class="bg-[#E6F4EA]/60 border border-emerald-100 p-2 rounded-xl flex flex-col justify-between cursor-pointer active:scale-[0.98] transition h-16">
+                        <div class="flex items-center justify-between w-full mb-0.5">
+                            <div class="p-1 bg-emerald-100 text-emerald-600 rounded-md"><i data-lucide="eye" class="w-3.5 h-3.5"></i></div>
+                        </div>
+                        <div><h5 class="font-bold text-[11px] text-slate-800 leading-tight">Post View</h5><span class="text-[8px] font-bold text-emerald-700 block">Reward: $0.0008</span></div>
+                    </div>
+                    <div onclick="openTaskPage('Visit Site', 0.0010, 'visit')" class="bg-[#FFF3E0]/60 border border-orange-100 p-2 rounded-xl flex flex-col justify-between cursor-pointer active:scale-[0.98] transition h-16">
+                        <div class="flex items-center justify-between w-full mb-0.5">
+                            <div class="p-1 bg-orange-100 text-orange-600 rounded-md"><i data-lucide="monitor" class="w-3.5 h-3.5"></i></div>
+                        </div>
+                        <div><h5 class="font-bold text-[11px] text-slate-800 leading-tight">Visit Site</h5><span class="text-[8px] font-bold text-orange-700 block">Reward: $0.0010</span></div>
+                    </div>
+                    <div onclick="showAppAlert('Coming soon', 'info')" class="bg-[#E8F0FE]/60 border border-blue-100 p-2 rounded-xl flex flex-col justify-between cursor-pointer active:scale-[0.98] transition h-16">
+                        <div class="flex items-center justify-between w-full mb-0.5">
+                            <div class="p-1 bg-blue-100 text-blue-600 rounded-md"><i data-lucide="clapperboard" class="w-3.5 h-3.5"></i></div>
+                        </div>
+                        <div><h5 class="font-bold text-[11px] text-slate-800 leading-tight">Short Video</h5><span class="text-[8px] font-bold text-blue-700 block">Reward: $0.0015</span></div>
+                    </div>
+                </div>
+
+                <div class="flex-1 flex flex-col min-h-0 mt-1">
+                    <h4 class="text-[9px] font-bold text-slate-400 tracking-wider uppercase mb-1 shrink-0">Channel Tasks</h4>
+                    <div class="flex-1 flex flex-col">
+                        <div id="live-tasks-wrapper" class="flex flex-col gap-1.5 pb-2">
+                            </div>
+                        <div id="no-tasks-fallback" class="w-full text-center py-6 text-slate-400 text-[10px] font-medium hidden">
+                            No remaining tasks available! All slots cleared successfully.
+                        </div>
+                    </div>
+                </div>
+            </main>
+
+            <main id="tab-refer" class="tab-content h-full flex flex-col hidden overflow-y-auto hide-scrollbar">
+                <div id="refer-card-header" class="w-full bg-gradient-to-r from-[#6A41EF] to-[#8F66FA] text-white p-4 pt-5 pb-10 relative overflow-hidden shrink-0 shadow-md">
+                    <div class="z-10 w-[60%]">
+                        <h3 class="text-base font-black leading-tight">Invite Friends<br>Earn More Rewards</h3>
+                        <p class="text-[10px] text-white/80 mt-1.5 leading-tight">Get lifetime commission from active referrals instantly on every task complete.</p>
+                    </div>
+                    <div class="absolute right-0 top-2 w-32 h-32 flex items-center justify-center">
+                        <i data-lucide="gift" class="w-20 h-20 text-white/20"></i>
+                        <div class="absolute bottom-4 right-4 bg-[#3EB8F6] p-2 rounded-full shadow-lg">
+                            <i data-lucide="send" class="w-4 h-4 text-white fill-white"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="px-3 flex flex-col gap-2 -mt-6 z-20 pb-4">
+                    <div class="bg-white p-3 rounded-2xl border border-slate-100 shadow-sm space-y-2 shrink-0 relative">
+                        <h4 class="text-[11px] font-bold text-slate-800">Your Referral Link</h4>
+                        <div class="bg-slate-50 border border-slate-100 p-2 rounded-xl flex items-center justify-between gap-2">
+                            <span id="refer-link" class="text-[10px] font-medium text-slate-700 truncate w-full">https://t.me/bot/app?startapp=0000</span>
+                            <button onclick="copyReferralLink()" class="bg-[#6A41EF] text-white text-[10px] font-bold px-3 py-1.5 rounded-lg flex items-center gap-1 shadow-xs shrink-0 active:scale-95 transition"><i data-lucide="copy" class="w-3 h-3"></i> Copy</button>
+                        </div>
+                        <button onclick="shareOnTelegramAppLink()" class="w-full border border-[#6A41EF]/20 text-[#6A41EF] font-black text-xs p-2 rounded-xl flex items-center justify-center gap-1.5 hover:bg-purple-50 transition active:scale-95"><i data-lucide="send" class="w-3.5 h-3.5"></i> Share on Telegram</button>
+                    </div>
+
+                    <div class="bg-white rounded-xl p-2.5 border border-slate-100 shadow-2xs flex items-center justify-between divide-x divide-slate-100 text-center shrink-0">
+                        <div class="flex-1">
+                            <div class="flex justify-center mb-0.5"><div class="bg-purple-50 p-1.5 rounded-full"><i data-lucide="users-2" class="w-3.5 h-3.5 text-[#6A41EF]"></i></div></div>
+                            <div id="refer-total-count" class="text-slate-800 font-bold text-xs">0</div>
+                            <p class="text-[8px] text-slate-400 font-bold">Total Referrals</p>
+                        </div>
+                        <div class="flex-1">
+                            <div class="flex justify-center mb-0.5"><div class="bg-purple-50 p-1.5 rounded-full"><i data-lucide="trending-up" class="w-3.5 h-3.5 text-[#6A41EF]"></i></div></div>
+                            <div id="refer-total-earning" class="text-slate-800 font-bold text-xs">$0.0000</div>
+                            <p class="text-[8px] text-slate-400 font-bold">Referral Earning</p>
+                        </div>
+                        <div class="flex-1">
+                            <div class="flex justify-center mb-0.5"><div class="bg-purple-50 p-1.5 rounded-full"><i data-lucide="check-circle" class="w-3.5 h-3.5 text-[#6A41EF]"></i></div></div>
+                            <div id="refer-valid-count" class="text-slate-800 font-bold text-xs">0</div>
+                            <p class="text-[8px] text-slate-400 font-bold">Valid Members</p>
+                        </div>
+                    </div>
+
+                    <div class="flex flex-col min-h-0">
+                        <div class="flex items-center justify-between mb-1.5 shrink-0">
+                            <h4 class="text-[11px] font-bold text-slate-800">Referral Network Signups</h4>
+                            <button onclick="openViewAllModal('referrals')" class="text-[9px] text-[#6A41EF] font-bold flex items-center gap-0.5">View All <i data-lucide="chevron-right" class="w-3 h-3"></i></button>
+                        </div>
+                        <div id="referral-list-container" class="flex flex-col space-y-1 pb-2">
+                            </div>
+                    </div>
+                </div>
+            </main>
+
+            <main id="tab-profile" class="tab-content h-full flex flex-col justify-between gap-2 px-3 hidden">
+                <div class="bg-gradient-to-br from-[#4A3AFF] via-[#6320EE] to-[#8000FF] text-white rounded-2xl p-4 shadow-lg relative overflow-hidden h-[120px] flex flex-col justify-between shrink-0 mt-1">
+                    <div class="absolute inset-0 bg-[radial-gradient(circle_at_right_top,rgba(255,255,255,0.1),transparent)]"></div>
+                    <div class="flex items-center justify-between z-10 relative">
+                        <div class="flex items-center gap-3">
+                            <img id="profile-avatar-node" src="https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=150" alt="Profile" class="w-12 h-12 rounded-full border-2 border-white/20 object-cover">
+                            <div>
+                                <h3 id="profile-name-node" class="font-black text-sm tracking-tight">Loading Profile</h3>
+                                <p id="profile-username-node" class="text-[10px] text-purple-200">@username</p>
+                            </div>
+                        </div>
+                        <span id="profile-status-badge" class="bg-emerald-500/20 text-emerald-300 text-[8px] font-bold px-2 py-0.5 rounded-full border border-emerald-500/30">ONLINE</span>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-2 text-center pt-2 border-t border-white/10 z-10 relative">
+                        <div>
+                            <div id="profile-stat-earned" class="text-white font-black text-sm">$0.0000</div>
+                            <p class="text-[8px] text-purple-200 uppercase tracking-wider font-bold">Total Income</p>
+                        </div>
+                        <div>
+                            <div id="profile-stat-withdrawn" class="text-white font-black text-sm">$0.0000</div>
+                            <p class="text-[8px] text-purple-200 uppercase tracking-wider font-bold">Total Withdrawn</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex-1 bg-white border border-slate-100 shadow-3xs rounded-xl p-3 flex flex-col min-h-0">
+                    <div class="flex items-center gap-1.5 mb-2 border-b border-slate-50 pb-1.5 shrink-0">
+                        <i data-lucide="shield-alert" class="w-4 h-4 text-[#6320EE]"></i>
+                        <h4 class="text-xs font-black text-slate-800">Elite Earn Platform Guidelines</h4>
+                    </div>
+                    <div class="flex-1 overflow-y-auto hide-scrollbar text-[10px] text-slate-500 space-y-2 leading-relaxed pr-0.5">
+                        <p class="font-medium"><strong class="text-slate-700">1. Verification Audits:</strong> Every reward action logged triggers background validation mapping geolocation headers instantly. Discrepancies in device structures block withdrawal eligibility rows permanently.</p>
+                        <p class="font-medium"><strong class="text-slate-700">2. Proxy Networks Forbidden:</strong> The utilization of spoofing networks, emulators, or multi-tab programmatic automations precipitates direct algorithmic terminal closure.</p>
+                        <p class="font-medium"><strong class="text-slate-700">3. Commission Payout Structures:</strong> Uplink refer percentages reflect instantly upon task completion, filtered through strict unread validation check algorithms.</p>
+                    </div>
+                </div>
+            </main>
+        </div>
+
+        <nav class="absolute bottom-0 left-0 right-0 h-14 bg-white border-t border-slate-100 flex items-center justify-around px-2 z-40 shrink-0 shadow-lg pb-safe">
+            <button onclick="switchTab('home')" id="nav-btn-home" class="flex flex-col items-center gap-0.5 text-[#6A41EF] font-bold transition">
+                <i data-lucide="home" class="w-5 h-5"></i><span class="text-[9px]">Home</span>
+                <div id="indicator-home" class="w-8 h-0.5 bg-[#6A41EF] rounded-full mt-0.5"></div>
+            </button>
+            <button onclick="switchTab('refer')" id="nav-btn-refer" class="flex flex-col items-center gap-0.5 text-slate-400 font-medium transition">
+                <i data-lucide="users" class="w-5 h-5"></i><span class="text-[9px]">Invite</span>
+                <div id="indicator-refer" class="w-8 h-0.5 bg-transparent rounded-full mt-0.5"></div>
+            </button>
+            <button onclick="switchTab('profile')" id="nav-btn-profile" class="flex flex-col items-center gap-0.5 text-slate-400 font-medium transition">
+                <i data-lucide="user" class="w-5 h-5"></i><span class="text-[9px]">Profile</span>
+                <div id="indicator-profile" class="w-8 h-0.5 bg-transparent rounded-full mt-0.5"></div>
+            </button>
+        </nav>
+    </div>
+
+    <div id="view-notifications" class="fixed inset-0 bg-[#F8F9FA] z-[60] flex flex-col transform translate-x-full transition-transform duration-300 ease-out">
+        <header class="flex items-center justify-between px-4 py-3 bg-white border-b border-slate-100 shrink-0">
+            <div class="flex items-center gap-2">
+                <div class="bg-purple-50 p-1.5 rounded-full text-[#6320EE]"><i data-lucide="bell" class="w-4 h-4"></i></div>
+                <h2 class="font-black text-sm text-slate-900">Notifications Centre</h2>
+            </div>
+            <button onclick="closeNotificationsView()" class="bg-slate-50 p-1.5 rounded-full text-slate-500 active:scale-90 transition">
+                <i data-lucide="x" class="w-4 h-4"></i>
+            </button>
+        </header>
+        
+        <div id="notifications-list-container" class="flex-1 p-4 overflow-y-auto hide-scrollbar space-y-3">
+            </div>
+    </div>
+
+    <div id="view-withdraw" class="fixed inset-0 bg-[#F8F9FA] z-[65] flex flex-col transform translate-x-full transition-transform duration-300 ease-out">
+        <header class="flex items-center justify-between px-4 py-3 bg-white border-b border-slate-100 shrink-0">
+            <div class="flex items-center gap-2">
+                <div class="bg-purple-50 p-1.5 rounded-full text-[#6320EE]"><i data-lucide="wallet" class="w-4 h-4"></i></div>
+                <h2 class="font-black text-sm text-slate-900">Withdraw Rewards</h2>
+            </div>
+            <button onclick="closeWithdrawPage()" class="bg-slate-50 p-1.5 rounded-full text-slate-500 active:scale-90 transition">
+                <i data-lucide="x" class="w-4 h-4"></i>
+            </button>
+        </header>
+
+        <div class="flex-1 overflow-y-auto hide-scrollbar p-4 space-y-4 pb-20">
+            <div class="bg-gradient-to-br from-slate-900 to-indigo-950 text-white p-4 rounded-2xl shadow-sm relative overflow-hidden flex flex-col justify-between h-[90px] shrink-0">
+                <div class="absolute inset-0 bg-[radial-gradient(circle_at_right_bottom,rgba(99,32,238,0.15),transparent)]"></div>
+                <div>
+                    <p class="text-[9px] uppercase font-bold tracking-wider text-slate-400">Available Balance Settlement</p>
+                    <h3 class="text-2xl font-black mt-0.5">$<span class="current-balance">0.0000</span></h3>
+                </div>
+                <p class="text-[8px] text-slate-400 font-medium">Payout processes route securely to destination endpoints.</p>
+            </div>
+
+            <div class="space-y-2">
+                <h4 class="text-[10px] font-bold text-slate-400 tracking-wider uppercase">Select Withdrawal Method</h4>
+                <div id="withdraw-methods-dynamic-wrapper" class="grid grid-cols-1 gap-2">
+                    </div>
+            </div>
+
+            <div class="bg-white p-4 rounded-xl border border-slate-100 shadow-3xs space-y-3">
+                <div class="space-y-1">
+                    <label id="withdraw-limit-label" class="text-[10px] font-bold text-slate-500 block uppercase">Wallet Account Destination Address</label>
+                    <div class="relative flex items-center">
+                        <input id="withdraw-address-input" type="text" placeholder="Enter recipient wallet destination address string" class="w-full bg-slate-50 text-slate-800 text-xs p-2.5 pr-14 rounded-xl border border-slate-100 font-medium focus:outline-hidden focus:border-[#6320EE]/30 transition">
+                        <button onclick="triggerAddressClipboardPaste()" class="absolute right-2 bg-purple-50 text-[#6320EE] text-[9px] font-black px-2 py-1 rounded-md active:scale-95 transition">PASTE</button>
+                    </div>
+                </div>
+
+                <div class="space-y-1">
+                    <label class="text-[10px] font-bold text-slate-500 block uppercase">Settlement Cashout Amount ($)</label>
+                    <input id="withdraw-amount-input" type="number" step="any" placeholder="0.0000" class="w-full bg-slate-50 text-slate-800 text-xs p-2.5 rounded-xl border border-slate-100 font-bold focus:outline-hidden focus:border-[#6320EE]/30 transition">
+                </div>
+
+                <button onclick="submitWithdrawalTransaction()" class="w-full bg-[#6320EE] text-white font-black text-xs p-3 rounded-xl shadow-md shadow-purple-600/10 active:scale-98 transition flex items-center justify-center gap-1.5 pt-2.5">
+                    <i data-lucide="check-circle-2" class="w-4 h-4"></i> Submit Cashout Request
+                </button>
+            </div>
+            
+            <div class="mt-2">
+                <div class="flex items-center justify-between mb-1">
+                    <h4 class="text-[10px] font-bold text-slate-800">Recent Requests</h4>
+                    <button onclick="openViewAllModal('withdrawals')" class="text-[9px] text-[#6320EE] font-bold">View All</button>
+                </div>
+                <div id="wd-history-container" class="space-y-1.5 pb-2">
+                    </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="active-task-modal" class="fixed inset-0 bg-slate-950/60 backdrop-blur-xs z-[75] flex items-center justify-center p-4 hidden">
+        <div class="bg-white rounded-2xl w-full max-w-xs p-5 space-y-4 shadow-xl relative overflow-hidden">
+            <div class="flex items-center justify-between border-b border-slate-50 pb-2">
+                <h3 id="task-modal-title" class="text-sm font-black text-slate-900">Task Details</h3>
+                <button onclick="closeActiveTaskModal()" class="text-slate-400 hover:text-slate-600 active:scale-90 transition"><i data-lucide="x" class="w-4 h-4"></i></button>
+            </div>
+            <div id="task-modal-body" class="space-y-3">
+                </div>
+        </div>
+    </div>
+
+    <div id="promo-modal" class="fixed inset-0 bg-slate-950/60 backdrop-blur-xs z-[80] flex items-center justify-center p-4 hidden">
+        <div class="bg-white rounded-2xl p-5 w-full max-w-xs space-y-4 shadow-2xl relative">
+            <div class="flex items-center justify-between border-b border-slate-50 pb-2">
+                <div class="flex items-center gap-1.5 text-amber-500"><i data-lucide="ticket" class="w-4 h-4"></i><h3 class="font-black text-xs uppercase tracking-wider text-slate-800">Redeem Promo Code</h3></div>
+                <button onclick="closePromoModal()" class="text-slate-400 active:scale-90 transition"><i data-lucide="x" class="w-4 h-4"></i></button>
+            </div>
+            <div class="space-y-2">
+                <p class="text-[10px] text-slate-400 font-medium">Input active promo voucher string verified directly with our server ecosystem.</p>
+                <input id="promo-input" type="text" placeholder="ENTER CODE HERE" class="w-full bg-slate-50 text-slate-800 font-black tracking-widest text-center text-xs p-2.5 rounded-xl border border-slate-100 uppercase focus:outline-hidden">
+                <button onclick="executePromoCodeValidation()" class="w-full bg-gradient-to-r from-amber-400 to-orange-500 text-slate-900 font-black text-xs p-2.5 rounded-xl shadow-xs transition active:scale-95">Claim Reward Voucher</button>
+            </div>
+        </div>
+    </div>
+    
+    <div id="view-all-modal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-[200] hidden items-center justify-center p-4 fade-enter" onclick="closeViewAllModal()">
+        <div class="bg-[#F8F9FA] rounded-2xl w-full max-w-sm h-[85vh] flex flex-col relative shadow-2xl overflow-hidden" onclick="event.stopPropagation()">
+            <div class="p-3 border-b border-slate-200 flex justify-between items-center bg-white shrink-0">
+                <button onclick="closeViewAllModal()" class="w-7 h-7 bg-slate-100 rounded-full flex items-center justify-center active:scale-90"><i data-lucide="chevron-left" class="w-4 h-4 text-slate-700"></i></button>
+                <h3 id="view-all-title" class="font-bold text-sm text-slate-800">View All</h3>
+                <div class="w-7 h-7"></div>
+            </div>
+            <div id="view-all-content" class="p-3 overflow-y-auto hide-scrollbar flex-1 space-y-2">
+                </div>
+        </div>
+    </div>
+
+    <div id="custom-ad-modal" class="fixed inset-0 z-[150] hidden flex-col max-w-md mx-auto items-center justify-center relative bg-black/90">
+        <div class="absolute inset-0 z-0" onclick="handleAdBlurClick()"></div>
+        <div class="relative w-full h-full max-w-sm z-10 flex flex-col items-center justify-center overflow-hidden">
+            <div class="text-center p-4 pointer-events-none" id="ad-content-loading">
+                <div class="w-10 h-10 border-4 border-purple-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+                <p class="text-white font-bold text-sm" id="ad-content-title">Loading Sponsored Content...</p>
+                <p class="text-white/50 text-[10px] mt-2">Please stay on this screen to earn</p>
+            </div>
+        </div>
+        <div class="absolute top-6 right-6 z-20 bg-black/50 backdrop-blur-sm border border-white/20 text-white px-3 py-1.5 rounded-full text-xs font-bold flex items-center justify-center shadow-lg min-w-[60px]" id="ad-timer">
+            Wait...
+        </div>
+    </div>
+
+    <script>
+        // Telegram WebApp Initialization and Validation
+        let tg = window.Telegram?.WebApp || null;
+        
+        // Strict Validation: Ensure it's opening inside Telegram App ONLY
+        if (!tg || !tg.initDataUnsafe || Object.keys(tg.initDataUnsafe).length === 0) {
+            document.body.innerHTML = `
+                <div style="display:flex;flex-direction:column;height:100vh;width:100vw;background:#070012;color:white;align-items:center;justify-content:center;text-align:center;font-family:sans-serif;padding:20px;">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-bottom:20px;"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/></svg>
+                    <h1 style="font-size:24px;font-weight:900;margin-bottom:10px;">Access Denied</h1>
+                    <p style="font-size:14px;color:#94a3b8;">This application can only be accessed securely through the official Telegram Mini App platform.</p>
+                </div>
+            `;
+            throw new Error("Execution halted: Not inside Telegram Mini App.");
+        }
+
+        tg.expand();
+        tg.ready();
+
+        // Custom In-App Alert System
+        function showAppAlert(msg, type = 'info') {
+            document.getElementById('alert-message').innerText = msg;
+            let title = 'Notice';
+            let icon = 'info';
+            let color = 'text-blue-600';
+            let bg = 'bg-blue-50';
+            
+            if(type === 'error') { 
+                title = 'Error'; icon = 'alert-triangle'; color = 'text-rose-600'; bg = 'bg-rose-50'; 
+            } else if(type === 'success') { 
+                title = 'Success'; icon = 'check-circle'; color = 'text-emerald-600'; bg = 'bg-emerald-50'; 
+            } else if(type === 'warning') {
+                title = 'Warning'; icon = 'alert-circle'; color = 'text-amber-600'; bg = 'bg-amber-50';
+            }
+            
+            document.getElementById('alert-title').innerText = title;
+            document.getElementById('alert-icon').setAttribute('data-lucide', icon);
+            const iconContainer = document.getElementById('alert-icon-container');
+            iconContainer.className = `w-12 h-12 rounded-full flex items-center justify-center mb-3 ${bg} ${color}`;
+            
+            lucide.createIcons();
+            
+            const modal = document.getElementById('custom-app-alert');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+            setTimeout(() => { modal.classList.remove('fade-enter'); modal.classList.add('fade-active'); }, 10);
+        }
+
+        function closeAppAlert() {
+            const modal = document.getElementById('custom-app-alert');
+            modal.classList.remove('fade-active');
+            modal.classList.add('fade-enter');
+            setTimeout(() => { modal.classList.add('hidden'); modal.classList.remove('flex'); }, 200);
+        }
+
+        // Production Configuration Settings
+        const firebaseConfig = {
+            apiKey: "AIzaSyAZEZXBu_kJjNaVvtL1ZsWpXCkA2zTBZX4",
+            authDomain: "elite-earn.firebaseapp.com",
+            projectId: "elite-earn",
+            storageBucket: "elite-earn.firebasestorage.app",
+            messagingSenderId: "158179256083",
+            appId: "1:158179256083:web:9485d78385bd0c941a1ce6",
+            measurementId: "G-PX1Y9SS3EZ"
+        };
+
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+        window.db = db;
+
+        let tgUser = tg.initDataUnsafe.user;
+        let userIdStr = String(tgUser.id); 
+        let userData = null;
+        let adminConfig = null;
+        let selectedWithdrawMethodId = null;
+        let consecutiveAdSkipsCount = 0; 
+        
+        let currentTaskReward = 0;
+        let adWatchInterval;
+        let continuousCountryInterval;
+        let isAdClicked = false;
+
+        const BASE_BLANK_USER_SCHEMA = {
+            balance: 0.0000,
+            adsWatchedCount: 0,
+            totalEarnedAmount: 0.0000,
+            referralsCount: 0,
+            validReferralsCount: 0,
+            loginDaysCount: 1,
+            completedTasks: [],
+            taskSlots: {},
+            lastLoginDate: "",
+            lastWarningResetDate: "",
+            adSkipWarningsCount: 0,
+            walletAddress: "",
+            withdrawnTotal: 0.0000,
+            referralCommissionsEarned: 0.0000,
+            username: "anonymous",
+            fullName: "Elite End-User",
+            country: "Global",
+            countryCode: "GL"
+        };
+
+        window.addEventListener('DOMContentLoaded', async () => {
+            animateProgressBarNode(25);
+            await bootstrapApplicationEcosystem();
+        });
+
+        function animateProgressBarNode(pct) {
+            const bar = document.getElementById('loading-progress');
+            if(bar) bar.style.width = `${pct}%`;
+        }
+
+        async function bootstrapApplicationEcosystem() {
+            try {
+                animateProgressBarNode(50);
+                
+                const adminSnap = await db.collection("admin_settings").doc("global_config").get().catch(e => console.log(e));
+                if (adminSnap && adminSnap.exists) {
+                    adminConfig = adminSnap.data();
+                } else {
+                    adminConfig = {
+                        officialChannelUsername: "EliteEarnAnnouncement",
+                        officialChannelId: "-100215892534",
+                        forceJoinRequired: true,
+                        developerLink: "https://t.me/ONESHOT_STUDIO_OFFICIAL",
+                        privacyLink: "https://t.me/EliteEarn_chat",
+                        termsLink: "https://t.me/EliteEarn_chat",
+                        botUsername: "EliteEarnPremiumBot",
+                        appShortName: "earn",
+                        taskSettings: { minAdWatchTime: 15 }
+                    };
+                }
+
+                animateProgressBarNode(75);
+
+                let userCountryName = "Global";
+                let userCountryCode = "GL";
+                try {
+                    const geoResponse = await fetch('https://ipapi.co/json/').then(res => res.json());
+                    if(geoResponse && geoResponse.country_name) {
+                        userCountryName = geoResponse.country_name;
+                        userCountryCode = geoResponse.country_code;
+                    }
+                } catch (geoErr) {
+                    console.log("Country endpoint fallback");
+                }
+
+                const userRef = db.collection("users").doc(userIdStr);
+                const userSnapshot = await userRef.get().catch(e => console.log(e));
+                
+                const d = new Date();
+                const currentDateStr = `${d.getFullYear()}-${d.getMonth()+1}-${d.getDate()}`;
+
+                if (!userSnapshot || !userSnapshot.exists) {
+                    userData = { ...BASE_BLANK_USER_SCHEMA };
+                    userData.username = tgUser.username || "username";
+                    userData.fullName = `${tgUser.first_name || ""} ${tgUser.last_name || ""}`.trim() || "Elite End-User";
+                    userData.country = userCountryName;
+                    userData.countryCode = userCountryCode;
+                    userData.lastLoginDate = currentDateStr;
+                    userData.lastWarningResetDate = currentDateStr;
+
+                    let referrerId = extractStartupReferralToken();
+                    if (referrerId && referrerId !== userIdStr) {
+                        userData.referredByUplinkId = referrerId;
+                        await db.collection("users").doc(String(referrerId)).update({
+                            referralsCount: firebase.firestore.FieldValue.increment(1)
+                        }).catch(e => console.log(e));
+                    }
+
+                    await userRef.set(userData).catch(e => console.log(e));
+                } else {
+                    userData = userSnapshot.data();
+                    let updates = { status: "Online", country: userCountryName, countryCode: userCountryCode };
+                    
+                    if (userData.lastLoginDate !== currentDateStr) {
+                        updates.loginDaysCount = firebase.firestore.FieldValue.increment(1);
+                        updates.lastLoginDate = currentDateStr;
+                    }
+                    if (userData.lastWarningResetDate !== currentDateStr) {
+                        updates.adSkipWarningsCount = 0;
+                        updates.lastWarningResetDate = currentDateStr;
+                    }
+                    await userRef.update(updates).catch(e => console.log(e));
+                    
+                    const refSnap = await userRef.get();
+                    userData = refSnap.data();
+                }
+
+                animateProgressBarNode(100);
+                
+                synchronizeApplicationStateFields();
+                listenToLiveAppDataStreams();
+                
+                document.getElementById('loading-screen').classList.add('opacity-0', 'pointer-events-none');
+                document.getElementById('main-app').classList.remove('hidden');
+
+                if (adminConfig.forceJoinRequired && !userData.hasJoinedOfficialChannelVerificationToken) {
+                    evaluateForceJoinModalState();
+                } else {
+                    document.getElementById('force-join-modal').classList.add('hidden');
+                }
+
+            } catch (fatalErr) {
+                console.error("Init crash: ", fatalErr);
+                document.getElementById('loading-text-node').innerText = "NETWORK TIMEOUT - ATTEMPTING RECONNECT...";
+                setTimeout(bootstrapApplicationEcosystem, 3000); 
+            }
+        }
+
+        function extractStartupReferralToken() {
+            if(tg && tg.initDataUnsafe && tg.initDataUnsafe.start_param) {
+                return String(tg.initDataUnsafe.start_param).trim();
+            }
+            return null;
+        }
+
+        const SecureWallet = {
+            _restricted: false,
+            _completedTasks: new Set(),
+            _dailyEarnings: 0,
+            
+            addReward: async function(amount, source, taskId = null) {
+                if(this._restricted) return false;
+                
+                if(taskId && this._completedTasks.has(taskId)) {
+                    showAppAlert("Task already claimed!", 'error');
+                    return false;
+                }
+                
+                if(this._dailyEarnings + amount > 2.00) {
+                    showAppAlert("Daily earning limit reached.", 'error');
+                    return false;
+                }
+
+                if(amount > 1.00 && source !== 'Promo Code') {
+                    this.restrictAccount("Abnormal Reward Request Detected");
+                    return false;
+                }
+
+                this._dailyEarnings += amount;
+                if(taskId) this._completedTasks.add(taskId);
+                
+                // Commit to DB
+                try {
+                    const userRef = db.collection("users").doc(userIdStr);
+                    let updatePayload = {
+                        balance: firebase.firestore.FieldValue.increment(amount),
+                        totalEarnedAmount: firebase.firestore.FieldValue.increment(amount),
+                        adsWatchedCount: firebase.firestore.FieldValue.increment(1)
+                    };
+                    
+                    if(taskId) {
+                        const nextSlotValue = (userData.taskSlots?.[taskId] || 1) + 1;
+                        updatePayload[`taskSlots.${taskId}`] = nextSlotValue;
+                        updatePayload.completedTasks = firebase.firestore.FieldValue.arrayUnion(taskId);
+                    }
+
+                    await userRef.update(updatePayload);
+
+                    // Process Referral Commission (10%)
+                    if(userData.referredByUplinkId) {
+                        const referrerIdStr = String(userData.referredByUplinkId);
+                        const commAmount = amount * 0.10; 
+                        await db.collection("users").doc(referrerIdStr).update({
+                            balance: firebase.firestore.FieldValue.increment(commAmount),
+                            referralCommissionsEarned: firebase.firestore.FieldValue.increment(commAmount)
+                        }).catch(e => console.log(e));
+                    }
+
+                    // Local Transaction history for View All
+                    const txId = `TX-${Date.now()}`;
+                    await db.collection("transactions").doc(txId).set({
+                        userId: userIdStr, amount: amount, source: source, type: 'credit', time: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+
+                    populateLiveTasksGridPanel(); // Refresh list to remove completed task
+
+                } catch (e) {
+                    console.log("Reward DB update failed: ", e);
+                }
+                return true;
+            },
+
+            restrictAccount: function(reason) {
+                this._restricted = true;
+                document.getElementById('restricted-reason').innerText = reason;
+                document.getElementById('restricted-screen').classList.remove('hidden');
+                db.collection("users").doc(userIdStr).update({ isRestricted: true, restrictReason: reason });
+            }
+        };
+
+        function listenToLiveAppDataStreams() {
+            db.collection("users").doc(userIdStr).onSnapshot(docSnap => {
+                if(docSnap && docSnap.exists) {
+                    userData = docSnap.data();
+                    if(userData.isRestricted) {
+                        SecureWallet.restrictAccount(userData.restrictReason || "Suspicious Activity");
+                    }
+                    synchronizeApplicationStateFields();
+                }
+            });
+
+            db.collection("notifications").onSnapshot(snap => {
+                if(snap) {
+                    let totalCount = snap.docs.length;
+                    let viewCount = parseInt(localStorage.getItem('elite_viewed_notif_count') || "0");
+                    let unreadDiff = totalCount - viewCount;
+                    const badge = document.getElementById('noti-badge');
+                    if(unreadDiff > 0) {
+                        badge.innerText = unreadDiff;
+                        badge.classList.remove('hidden');
+                    } else {
+                        badge.classList.add('hidden');
+                    }
+                }
+            });
+        }
+
+        function synchronizeApplicationStateFields() {
+            if(!userData) return;
+            
+            const balanceStr = parseFloat(userData.balance || 0).toFixed(4);
+            const totalEarnedStr = parseFloat(userData.totalEarnedAmount || 0).toFixed(4);
+            
+            document.querySelectorAll('.current-balance').forEach(el => el.innerText = balanceStr);
+            
+            document.getElementById('user-name').innerText = userData.fullName || "Elite User";
+            document.getElementById('user-id').innerText = userIdStr;
+            document.getElementById('user-username').innerText = userData.username || "anonymous";
+            document.getElementById('profile-name-node').innerText = userData.fullName || "Elite User";
+            document.getElementById('profile-username-node').innerText = `@${userData.username || "anonymous"}`;
+            
+            document.getElementById('stat-ads-watched').innerText = userData.adsWatchedCount || 0;
+            document.getElementById('stat-total-earned').innerText = `$${totalEarnedStr}`;
+            document.getElementById('stat-referral-count').innerText = userData.referralsCount || 0;
+            document.getElementById('stat-valid-referral').innerText = userData.validReferralsCount || 0;
+            document.getElementById('stat-login-days').innerText = userData.loginDaysCount || 1;
+            
+            document.getElementById('profile-stat-earned').innerText = `$${totalEarnedStr}`;
+            document.getElementById('profile-stat-withdrawn').innerText = `$${parseFloat(userData.withdrawnTotal || 0).toFixed(4)}`;
+            
+            document.getElementById('refer-total-count').innerText = userData.referralsCount || 0;
+            document.getElementById('refer-total-earning').innerText = `$${parseFloat(userData.referralCommissionsEarned || 0).toFixed(4)}`;
+            document.getElementById('refer-valid-count').innerText = userData.validReferralsCount || 0;
+            
+            if(tgUser && tgUser.photo_url) {
+                document.getElementById('user-avatar').src = tgUser.photo_url;
+                document.getElementById('profile-avatar-node').src = tgUser.photo_url;
+            }
+
+            const botUsernameStr = adminConfig?.botUsername || "EliteEarnPremiumBot";
+            const appShortNameStr = adminConfig?.appShortName || "earn";
+            document.getElementById('refer-link').innerText = `https://t.me/${botUsernameStr}/${appShortNameStr}?startapp=${userIdStr}`;
+
+            const flagEmoji = getCountryFlagEmojiSymbol(userData.countryCode);
+            document.getElementById('user-country-badge').innerHTML = `<span>${flagEmoji}</span> <span>${userData.country || "Global Region"}</span>`;
+
+            populateLiveTasksGridPanel();
+            renderReferralsNetworkSublist();
+        }
+
+        function getCountryFlagEmojiSymbol(countryCodeStr) {
+            if(!countryCodeStr || countryCodeStr === "GL" || countryCodeStr.length !== 2) return "🌐";
+            const codePoints = countryCodeStr.toUpperCase().split('').map(char =>  127397 + char.charCodeAt(0));
+            try { return String.fromCodePoint(...codePoints); } catch (e) { return "🏳️"; }
+        }
+
+        function switchTab(tabIdString) {
+            const tabs = ['home', 'refer', 'profile'];
+            tabs.forEach(t => {
+                document.getElementById(`tab-${t}`).classList.add('hidden');
+                const btn = document.getElementById(`nav-btn-${t}`);
+                if(btn) {
+                    btn.classList.remove('text-[#6A41EF]', 'font-bold');
+                    btn.classList.add('text-slate-400', 'font-medium');
+                }
+                const ind = document.getElementById(`indicator-${t}`);
+                if(ind) ind.classList.replace('bg-[#6A41EF]', 'bg-transparent');
+            });
+
+            document.getElementById(`tab-${tabIdString}`).classList.remove('hidden');
+            const activeBtn = document.getElementById(`nav-btn-${tabIdString}`);
+            if(activeBtn) {
+                activeBtn.classList.remove('text-slate-400', 'font-medium');
+                activeBtn.classList.add('text-[#6A41EF]', 'font-bold');
+            }
+            const activeInd = document.getElementById(`indicator-${tabIdString}`);
+            if(activeInd) activeInd.classList.replace('bg-transparent', 'bg-[#6A41EF]');
+            
+            lucide.createIcons();
+        }
+
+        async function populateLiveTasksGridPanel() {
+            const wrapper = document.getElementById('live-tasks-wrapper');
+            if(!wrapper) return;
+            wrapper.innerHTML = "";
+
+            const taskSnapshot = await db.collection("tasks").orderBy("createdAt", "desc").get().catch(e => console.log(e));
+            
+            let visibleTasksCounterCount = 0;
+
+            if(taskSnapshot && !taskSnapshot.empty) {
+                taskSnapshot.docs.forEach(docItem => {
+                    const taskId = docItem.id;
+                    const taskData = docItem.data();
+
+                    if (userData.completedTasks && userData.completedTasks.includes(taskId)) {
+                        return; 
+                    }
+
+                    visibleTasksCounterCount++;
+                    const currentSlotVal = userData.taskSlots?.[taskId] || 1;
+                    
+                    let iconName = "send";
+                    let typeBadgeClass = "bg-blue-100 text-blue-700";
+                    let typeName = "Channel";
+                    
+                    if(taskData.type === "visit") { iconName = "globe"; typeBadgeClass = "bg-emerald-100 text-emerald-700"; typeName = "Visit"; }
+                    else if(taskData.type === "view") { iconName = "eye"; typeBadgeClass = "bg-cyan-100 text-cyan-700"; typeName = "View"; }
+
+                    const cardEl = document.createElement('div');
+                    cardEl.className = "bg-white p-3 rounded-2xl border border-slate-100 shadow-3xs flex flex-col justify-between gap-2 active:scale-98 transition relative overflow-hidden";
+                    cardEl.onclick = () => launchSelectedTaskExecutionPipeline(taskId, taskData);
+                    
+                    cardEl.innerHTML = `
+                        <div class="space-y-1">
+                            <div class="flex items-center justify-between">
+                                <span class="${typeBadgeClass} text-[8px] font-black px-1.5 py-0.5 rounded-full uppercase">${typeName} Task</span>
+                                <i data-lucide="${iconName}" class="w-3.5 h-3.5 opacity-70"></i>
+                            </div>
+                            <h5 class="text-xs font-black text-slate-800 tracking-tight leading-tight mt-1 truncate">${taskData.title || "Elite Offer"}</h5>
+                            <p class="text-[9px] text-slate-400 font-medium truncate">${taskData.description || "Click to verify rewards allocation slot"}</p>
+                        </div>
+                        <div class="flex items-center justify-between border-t border-slate-50 pt-2 mt-1">
+                            <span class="text-[10px] font-black text-[#6320EE]">$${parseFloat(taskData.reward || 0).toFixed(4)}</span>
+                            <span class="text-[8px] bg-slate-50 border border-slate-100 px-1.5 py-0.5 rounded-md text-slate-500 font-bold">Slot: ${currentSlotVal}</span>
+                        </div>
+                    `;
+                    wrapper.appendChild(cardEl);
+                });
+            }
+
+            const fallback = document.getElementById('no-tasks-fallback');
+            if(visibleTasksCounterCount === 0) fallback.classList.remove('hidden');
+            else fallback.classList.add('hidden');
+
+            lucide.createIcons();
+        }
+
+        // Active Tasks Execution Pipeline
+        function openTaskPage(taskType, reward, type) {
+            let storedId = localStorage.getItem('elite_earn_device_user');
+            if (!storedId) {
+                localStorage.setItem('elite_earn_device_user', tgUser.id.toString());
+            } else if (storedId !== tgUser.id.toString()) {
+                showAppAlert("Multiple account Detected! Use first account.", 'error'); 
+                return;
+            }
+
+            // Route standard static tasks (Video, Visit, View) to generic task modal for now to keep it completely functional without breaking
+            const modalTitle = document.getElementById('task-modal-title');
+            const modalBody = document.getElementById('task-modal-body');
+            modalTitle.innerText = taskType;
+
+            let interactionMarkup = `
+                <div class="text-center space-y-3 py-2">
+                    <div class="text-[10px] bg-slate-50 p-2 rounded-xl border border-slate-100 flex flex-col gap-1 items-center justify-center">
+                        <div class="flex items-center gap-1 font-bold text-slate-600">Active Geolocation: ${getCountryFlagEmojiSymbol(userData.countryCode)} ${userData.country}</div>
+                        <div class="text-[8px] text-slate-400 font-medium uppercase tracking-wider mt-0.5">Allowed Regions:</div>
+                        <div class="text-xs mt-0.5">Global Allowed</div>
+                    </div>
+                    <p class="text-[10px] text-slate-500 font-medium leading-relaxed">Complete task presentation to unlock allocation rewards balances immediately.</p>
+                    <div class="bg-purple-50 border border-purple-100 p-2.5 rounded-xl text-center"><span class="text-xs font-black text-[#6320EE]">$${parseFloat(reward || 0).toFixed(4)} Reward</span></div>
+                    <button onclick="startAdTaskFlow('${taskType}', ${reward})" class="w-full bg-[#6320EE] text-white text-xs font-black p-2.5 rounded-xl flex items-center justify-center gap-1.5 shadow-sm">
+                        <i data-lucide="play-circle" class="w-4 h-4"></i> Start Task Now
+                    </button>
+                </div>
+            `;
+            
+            modalBody.innerHTML = interactionMarkup;
+            document.getElementById('active-task-modal').classList.remove('hidden');
+            lucide.createIcons();
+        }
+
+        function launchSelectedTaskExecutionPipeline(taskId, taskData) {
+            let storedId = localStorage.getItem('elite_earn_device_user');
+            if (storedId && storedId !== tgUser.id.toString()) {
+                showAppAlert("Multiple account Detected! Use first account.", 'error'); 
+                return;
+            }
+
+            if(taskData.allowedCountries && taskData.allowedCountries.length > 0) {
+                if(!taskData.allowedCountries.includes(userData.countryCode)) {
+                    showAppAlert(`This task slot is unavailable in your country region (${userData.country}).`, 'error');
+                    return;
+                }
+            }
+
+            const modalTitle = document.getElementById('task-modal-title');
+            const modalBody = document.getElementById('task-modal-body');
+            
+            let correctTypeName = "Task";
+            if(taskData.type === "channel") correctTypeName = "Channel Task";
+            else if(taskData.type === "visit") correctTypeName = "Visit Task";
+            else if(taskData.type === "view") correctTypeName = "View Task";
+            
+            modalTitle.innerText = correctTypeName;
+
+            const currentSlotValue = userData.taskSlots?.[taskId] || 1;
+            let interactionMarkup = `
+                <div class="space-y-3 py-1">
+                    <div class="bg-slate-50 p-2 rounded-xl text-center border border-slate-100"><h6 class="text-xs font-bold text-slate-800">${taskData.title || "Task Goal"}</h6><p class="text-[10px] text-slate-400 mt-0.5 font-medium">${taskData.description || "Follow requirements carefully."}</p></div>
+                    <div class="flex items-center justify-between text-[10px] font-bold text-slate-500 bg-slate-50 p-2 rounded-lg"><span class="uppercase">Current Sequence Slot:</span><span class="text-slate-800">Slot ${currentSlotValue}</span></div>
+                    
+                    <button id="btn-start-${taskId}" onclick="executeGenericExternalTaskLink('${taskId}', '${taskData.link}', ${taskData.reward})" class="w-full bg-slate-900 text-white text-xs font-black p-3 rounded-xl flex items-center justify-center gap-1 transition">Launch Destination <i data-lucide="external-link" class="w-3.5 h-3.5 ml-1"></i></button>
+                    
+                    <div id="claim-area-${taskId}" class="hidden flex-col gap-2 mt-2">
+                        <button onclick="claimChannelTask('${taskId}', '${taskData.chat_id}', ${taskData.reward})" class="w-full bg-amber-400 text-slate-900 text-xs font-black p-3 rounded-xl flex items-center justify-center gap-1 transition shadow-sm"><i data-lucide="download" class="w-4 h-4"></i> Claim Reward</button>
+                    </div>
+                </div>
+            `;
+
+            modalBody.innerHTML = interactionMarkup;
+            document.getElementById('active-task-modal').classList.remove('hidden');
+            lucide.createIcons();
+        }
+
+        function closeActiveTaskModal() {
+            document.getElementById('active-task-modal').classList.add('hidden');
+            removeFloatingOverlayArtifacts();
+        }
+
+        // Generic Start Flow
+        function executeGenericExternalTaskLink(taskId, urlString, rewardAmt) {
+            if(tg) tg.openLink(urlString);
+            else window.open(urlString, '_blank');
+
+            // Hide start button, show claim button
+            document.getElementById(`btn-start-${taskId}`).classList.add('hidden');
+            document.getElementById(`claim-area-${taskId}`).classList.remove('hidden');
+            document.getElementById(`claim-area-${taskId}`).classList.add('flex');
+        }
+
+        // Extremely fast Verification
+        async function claimChannelTask(taskId, chatId, rewardAmt) {
+            const claimArea = document.getElementById(`claim-area-${taskId}`);
+            claimArea.innerHTML = `<button class="w-full bg-slate-100 text-slate-400 text-xs font-black p-3 rounded-xl flex items-center justify-center transition"><div class="w-4 h-4 border-2 border-slate-400 border-t-transparent rounded-full animate-spin"></div></button>`;
+            
+            let isJoined = true; // Default true if no chat_id provided
+            if(chatId) {
+                isJoined = await checkChannelMembershipAPI(tgUser.id, chatId);
+            }
+
+            if(isJoined) {
+                claimArea.innerHTML = `<button class="w-full bg-emerald-50 border border-emerald-100 text-emerald-600 text-xs font-black p-3 rounded-xl flex items-center justify-center gap-1 transition"><i data-lucide="check-circle" class="w-4 h-4"></i> Verified</button>`;
+                lucide.createIcons();
+                SecureWallet.addReward(rewardAmt, "Task Completion", taskId);
+                setTimeout(() => { closeActiveTaskModal(); }, 1000);
+            } else {
+                claimArea.innerHTML = `<button class="w-full bg-rose-50 border border-rose-100 text-rose-600 text-xs font-black p-3 rounded-xl flex items-center justify-center gap-1 transition"><i data-lucide="x-circle" class="w-4 h-4"></i> Failed</button>`;
+                lucide.createIcons();
+                showAppAlert("You haven't completed the requirements yet!", "error");
+                setTimeout(() => { closeActiveTaskModal(); }, 1500);
+            }
+        }
+
+        // Original Start Ad Flow
+        function startAdTaskFlow(type, reward) {
+            currentTaskReward = reward;
+            closeActiveTaskModal();
+            openCustomAdModal(type);
+        }
+
+        function openCustomAdModal(type) {
+            const modal = document.getElementById('custom-ad-modal');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+            
+            isAdClicked = false;
+            let timeLeft = adminConfig?.taskSettings?.minAdWatchTime || 15;
+            document.getElementById('ad-timer').innerText = timeLeft + 's';
+            
+            const loader = document.getElementById('ad-content-loading');
+            loader.innerHTML = `
+                <div class="w-10 h-10 border-4 border-purple-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+                <p class="text-white font-bold text-sm" id="ad-content-title">Loading Sponsored Content...</p>
+                <p class="text-white/50 text-[10px] mt-2">Please stay on this screen to earn</p>
+            `;
+
+            if(type.includes('Video') && typeof show_11235004 === 'function') {
+                show_11235004().then(()=>{}).catch(e=>console.log(e));
+            }
+
+            adWatchInterval = setInterval(() => {
+                timeLeft--;
+                if(timeLeft > 0) {
+                    document.getElementById('ad-timer').innerText = timeLeft + 's';
+                } else {
+                    clearInterval(adWatchInterval);
+                    document.getElementById('ad-timer').innerHTML = `<button onclick="claimAdReward()" class="text-white hover:text-emerald-400 font-bold px-3 py-1 bg-emerald-500/20 rounded-full border border-emerald-500/50">Claim Now</button>`;
+                }
+            }, 1000);
+        }
+
+        function handleAdBlurClick() {
+            isAdClicked = true;
+            if(typeof show_11235004 === 'function') show_11235004('pop').then(()=>{}).catch(()=>{});
+        }
+
+        function claimAdReward() {
+            clearInterval(adWatchInterval);
+            const modal = document.getElementById('custom-ad-modal');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+            document.getElementById('ad-timer').innerHTML = "Wait..."; // Reset
+            removeFloatingOverlayArtifacts();
+            
+            SecureWallet.addReward(currentTaskReward, 'Ad/View/Visit Task');
+            showAppAlert(isAdClicked ? "Reward Claimed! (Bonus applied)" : "Reward Claimed Successfully!", "success");
+        }
+
+        // Withdraw Methods & Display
+        async function openWithdrawPage() {
+            const page = document.getElementById('view-withdraw');
+            page.classList.remove('hidden');
+            setTimeout(() => page.classList.remove('translate-x-full'), 10);
+            
+            const methodsWrapper = document.getElementById('withdraw-methods-dynamic-wrapper');
+            if(!methodsWrapper) return;
+            methodsWrapper.innerHTML = "<p class='text-[9px] text-slate-400 font-bold p-2 animate-pulse'>Syncing Payment Gateways...</p>";
+
+            const methodSnap = await db.collection("withdraw_methods").get().catch(e => console.log(e));
+            methodsWrapper.innerHTML = "";
+
+            if(methodSnap && !methodSnap.empty) {
+                let firstMethodId = null;
+                
+                methodSnap.docs.forEach((docItem, index) => {
+                    const mId = docItem.id;
+                    const mData = docItem.data();
+                    if(index === 0) firstMethodId = mId;
+
+                    const activeStyleClass = (selectedWithdrawMethodId === mId || (!selectedWithdrawMethodId && index === 0)) ? 'border-[#6320EE] bg-purple-50/40' : 'border-slate-100 bg-slate-50';
+                    if(!selectedWithdrawMethodId && index === 0) {
+                        selectedWithdrawMethodId = mId;
+                        updateWithdrawLabelsWithLimits(mData);
+                    }
+
+                    const rowEl = document.createElement('div');
+                    rowEl.className = `p-2.5 rounded-xl border flex items-center justify-between gap-3 cursor-pointer transition active:scale-99 ${activeStyleClass}`;
+                    rowEl.onclick = () => {
+                        selectedWithdrawMethodId = mId;
+                        updateWithdrawLabelsWithLimits(mData);
+                        openWithdrawPage();
+                    };
+
+                    const imageSrcUrl = mData.logoUrl || "https://images.unsplash.com/photo-1621416894569-0f39ed31d247?q=80&w=80";
+
+                    rowEl.innerHTML = `
+                        <div class="flex items-center gap-2.5">
+                            <img src="${imageSrcUrl}" alt="Gateway Logo" class="w-7 h-7 rounded-lg object-cover bg-white border border-slate-100 shadow-3xs shrink-0">
+                            <div>
+                                <h6 class="text-xs font-black text-slate-800 tracking-tight leading-none">${mData.name || "Crypto Destination Row"}</h6>
+                                <p class="text-[8px] text-slate-400 mt-1 font-bold">Limit: $${mData.minAmount || "0.00"} - $${mData.maxAmount || "0.00"}</p>
+                            </div>
+                        </div>
+                        <div class="w-4 h-4 rounded-full border border-slate-300 flex items-center justify-center bg-white shrink-0">
+                            ${(selectedWithdrawMethodId === mId) ? '<div class="w-2 h-2 bg-[#6320EE] rounded-full"></div>' : ''}
+                        </div>
+                    `;
+                    methodsWrapper.appendChild(rowEl);
+                });
+            } else {
+                methodsWrapper.innerHTML = "<p class='text-[9px] text-slate-400 font-bold text-center py-2'>No withdrawal channels set up by the admin panel.</p>";
+            }
+            renderWithdrawHistory();
+            lucide.createIcons();
+        }
+
+        function updateWithdrawLabelsWithLimits(methodDataPackage) {
+            const minStr = parseFloat(methodDataPackage.minAmount || 0).toFixed(2);
+            const maxStr = parseFloat(methodDataPackage.maxAmount || 0).toFixed(2);
+            document.getElementById('withdraw-limit-label').innerText = `${methodDataPackage.name || "Account"} Destination - Threshold ($${minStr} - $${maxStr})`;
+        }
+
+        function closeWithdrawPage() {
+            const page = document.getElementById('view-withdraw');
+            page.classList.add('translate-x-full');
+            setTimeout(() => page.classList.add('hidden'), 300);
+            removeFloatingOverlayArtifacts();
+        }
+
+        async function triggerAddressClipboardPaste() {
+            try {
+                const copiedText = await navigator.clipboard.readText();
+                if(copiedText) {
+                    document.getElementById('withdraw-address-input').value = copiedText;
+                }
+            } catch (err) {
+                showAppAlert("Please paste text address manually using keyboard.", "error");
+            }
+        }
+
+        async function submitWithdrawalTransaction() {
+            const addressInput = document.getElementById('withdraw-address-input');
+            const amountInput = document.getElementById('withdraw-amount-input');
+            
+            const destAddressStr = addressInput.value.trim();
+            const withdrawAmountNum = parseFloat(amountInput.value);
+
+            if(!destAddressStr || isNaN(withdrawAmountNum) || withdrawAmountNum <= 0) {
+                showAppAlert("Please fill in valid account destination address string properties completely.", "error");
+                return;
+            }
+
+            if(withdrawAmountNum > userData.balance) {
+                showAppAlert("Insufficient account balance available to complete withdrawal processing.", "error");
+                return;
+            }
+
+            const gatewaySnap = await db.collection("withdraw_methods").doc(selectedWithdrawMethodId).get();
+            if(!gatewaySnap.exists) {
+                showAppAlert("Invalid method selection channel profile configuration rules.", "error");
+                return;
+            }
+
+            const gatewayData = gatewaySnap.data();
+            const minThreshold = parseFloat(gatewayData.minAmount || 0);
+            const maxThreshold = parseFloat(gatewayData.maxAmount || 999999);
+
+            if(withdrawAmountNum < minThreshold || withdrawAmountNum > maxThreshold) {
+                showAppAlert(`Transaction outside boundaries! Limits: Min $${minThreshold} | Max $${maxThreshold}`, "error");
+                return;
+            }
+
+            try {
+                const txIdStr = `TX-${Math.floor(100000 + Math.random() * 900000)}`;
+                
+                await db.collection("withdrawals").doc(txIdStr).set({
+                    userId: userIdStr,
+                    username: userData.username,
+                    methodId: selectedWithdrawMethodId,
+                    methodName: gatewayData.name,
+                    amount: withdrawAmountNum,
+                    address: destAddressStr,
+                    status: "Pending",
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
+
+                await db.collection("users").doc(userIdStr).update({
+                    balance: firebase.firestore.FieldValue.increment(-withdrawAmountNum),
+                    withdrawnTotal: firebase.firestore.FieldValue.increment(withdrawAmountNum)
+                });
+
+                showAppAlert(`Cashout transaction logged successfully!\nID: ${txIdStr}\nStatus: Pending.`, "success");
+                addressInput.value = "";
+                amountInput.value = "";
+                closeWithdrawPage();
+
+            } catch (txErr) {
+                console.error("Cashout transaction submission processing failed: ", txErr);
+                showAppAlert("Server interface transaction block error processing request logs.", "error");
+            }
+        }
+
+        // Promo Code
+        async function executePromoCodeValidation() {
+            const inputField = document.getElementById('promo-input');
+            const codeString = inputField.value.trim().toUpperCase();
+            
+            if(!codeString) return;
+            closePromoModal();
+
+            try {
+                const codeRef = db.collection("promo_codes").doc(codeString);
+                const codeSnap = await codeRef.get();
+
+                if(!codeSnap || !codeSnap.exists) {
+                    showAppAlert("Invalid code", "error");
+                    return;
+                }
+
+                const promoData = codeSnap.data();
+                const claimedCount = promoData.claimedCount || 0;
+                const limitMax = promoData.limit || 0;
+
+                if(claimedCount >= limitMax) {
+                    showAppAlert("Maximum limit reached", "error");
+                    return;
+                }
+
+                if(userData.claimedPromoCodes && userData.claimedPromoCodes.includes(codeString)) {
+                    showAppAlert("You have already redeemed this promo voucher.", "error");
+                    return;
+                }
+
+                const rewardVal = parseFloat(promoData.reward || 0);
+
+                await db.collection("users").doc(userIdStr).update({
+                    balance: firebase.firestore.FieldValue.increment(rewardVal),
+                    totalEarnedAmount: firebase.firestore.FieldValue.increment(rewardVal),
+                    claimedPromoCodes: firebase.firestore.FieldValue.arrayUnion(codeString)
+                });
+
+                await codeRef.update({
+                    claimedCount: firebase.firestore.FieldValue.increment(1)
+                });
+
+                displayRewardSuccessPopup(`Success! Promo Code applied flawlessly. Reward amount of +$${rewardVal.toFixed(4)} granted.`);
+                inputField.value = "";
+
+            } catch (err) {
+                console.error("Voucher validation server transaction crash: ", err);
+                showAppAlert("System error validating code.", "error");
+            }
+        }
+
+        // View All Modal (For history and withdrawals)
+        async function openViewAllModal(type) {
+            const modal = document.getElementById('view-all-modal');
+            const title = document.getElementById('view-all-title');
+            const content = document.getElementById('view-all-content');
+            
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+            setTimeout(() => { modal.classList.remove('fade-enter'); modal.classList.add('fade-active'); }, 10);
+            
+            if(type === 'history') {
+                title.innerText = "Transaction History";
+                content.innerHTML = '';
+                
+                const txSnap = await db.collection("transactions").where("userId", "==", userIdStr).orderBy("time", "desc").limit(20).get();
+                if(txSnap && !txSnap.empty) {
+                    txSnap.docs.forEach(docItem => {
+                        const tx = docItem.data();
+                        const colorClass = tx.type === 'credit' ? 'text-emerald-600' : 'text-rose-500';
+                        const sign = tx.type === 'credit' ? '+' : '-';
+                        content.innerHTML += `
+                            <div class="bg-white p-3 rounded-xl border border-slate-100 flex items-center justify-between shadow-sm">
+                                <div><h5 class="font-bold text-xs text-slate-800">${tx.source}</h5></div>
+                                <span class="font-black text-xs ${colorClass}">${sign}$${parseFloat(tx.amount).toFixed(4)}</span>
+                            </div>
+                        `;
+                    });
+                } else {
+                    content.innerHTML = "<p class='text-center text-[10px] text-slate-400'>No history available</p>";
+                }
+            } else if(type === 'withdrawals') {
+                title.innerText = "Withdrawal Requests";
+                content.innerHTML = '';
+                
+                const wdSnap = await db.collection("withdrawals").where("userId", "==", userIdStr).orderBy("createdAt", "desc").limit(20).get();
+                if(wdSnap && !wdSnap.empty) {
+                    wdSnap.docs.forEach(docItem => {
+                        const wd = docItem.data();
+                        let badgeColor = wd.status === 'Pending' ? 'bg-orange-50 text-orange-600' : (wd.status === 'Accepted' ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600');
+                        content.innerHTML += `
+                            <div class="bg-white p-3 rounded-xl border border-slate-100 flex items-center justify-between shadow-sm">
+                                <div><h5 class="font-bold text-xs text-slate-800">$${parseFloat(wd.amount).toFixed(4)}</h5><p class="text-[9px] text-slate-400">${wd.methodName}</p></div>
+                                <span class="font-bold text-[9px] px-2 py-0.5 rounded-full ${badgeColor}">${wd.status}</span>
+                            </div>
+                        `;
+                    });
+                } else {
+                    content.innerHTML = "<p class='text-center text-[10px] text-slate-400'>No withdrawals available</p>";
+                }
+            } else if (type === 'referrals') {
+                title.innerText = "All Referrals";
+                content.innerHTML = document.getElementById('referral-list-container').innerHTML;
+            }
+        }
+
+        function closeViewAllModal() {
+            const modal = document.getElementById('view-all-modal');
+            modal.classList.remove('fade-active');
+            modal.classList.add('fade-enter');
+            setTimeout(() => { modal.classList.add('hidden'); modal.classList.remove('flex'); }, 200);
+        }
+
+        // Fixes and Helpers
+        function removeFloatingOverlayArtifacts() {
+            const lingeringBanners = document.querySelectorAll('[id*="ad_skip"], [class*="claim-btn"], iframe[src*="libtl"]');
+            lingeringBanners.forEach(el => { try { el.remove(); } catch(e){} });
+        }
+
+        function displayRewardSuccessPopup(msg) {
+            document.getElementById('reward-success-message-node').innerText = msg;
+            document.getElementById('reward-success-popup').classList.remove('hidden');
+        }
+
+        function closeRewardSuccessPopup() {
+            document.getElementById('reward-success-popup').classList.add('hidden');
+            removeFloatingOverlayArtifacts();
+        }
+
+        // Render Withdraw History embedded in Withdraw modal
+        async function renderWithdrawHistory() {
+            const container = document.getElementById('wd-history-container');
+            if(!container) return;
+            container.innerHTML = "";
+            const wdSnap = await db.collection("withdrawals").where("userId", "==", userIdStr).orderBy("createdAt", "desc").limit(3).get().catch(e => console.log(e));
+            
+            if(wdSnap && !wdSnap.empty) {
+                wdSnap.docs.forEach(docItem => {
+                    const wd = docItem.data();
+                    let badgeColor = wd.status === 'Pending' ? 'bg-orange-50 text-orange-600' : (wd.status === 'Accepted' ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600');
+                    container.innerHTML += `
+                        <div class="bg-white p-2 rounded-xl border border-slate-100 flex items-center justify-between shadow-2xs">
+                            <div class="flex items-center gap-2">
+                                <div class="w-6 h-6 bg-slate-100 rounded-lg flex items-center justify-center text-slate-500"><i data-lucide="arrow-down-to-line" class="w-3 h-3"></i></div>
+                                <div>
+                                    <div class="flex items-center gap-1.5"><h5 class="font-bold text-[10px] text-slate-800">$${parseFloat(wd.amount).toFixed(4)}</h5><span class="${badgeColor} text-[7px] font-bold px-1 rounded-sm">${wd.status}</span></div>
+                                    <p class="text-[8px] text-slate-500">${wd.methodName}</p>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                });
+                lucide.createIcons();
+            } else {
+                container.innerHTML = `<div class="text-center py-2 text-slate-400 text-[9px] font-medium">No requests yet</div>`;
+            }
+        }
+
+        // Helper Modal Controls
+        function openHelpChannel() {
+            const destinationUrl = "https://t.me/EliteEarn_chat";
+            if(tg) tg.openLink(destinationUrl);
+            else window.open(destinationUrl, '_blank');
+        }
+
+        function openPromoModal() { document.getElementById('promo-modal').classList.remove('hidden'); }
+        function closePromoModal() { document.getElementById('promo-modal').classList.add('hidden'); }
+    </script>
+</body>
+</html>
