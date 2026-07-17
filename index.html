@@ -5,8 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Elite Earn - Premium Telegram Mini App</title>
     
+    <!-- External SDKs & Dependencies -->
     <script src='//libtl.com/sdk.js' data-zone='11235004' data-sdk='show_11235004'></script>
     
+    <!-- Firebase Compat SDK to prevent loading crashes and network error failures -->
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
 
@@ -28,10 +30,22 @@
         }
         .page-enter { transform: translateX(100%); }
         .page-active { transform: translateX(0); }
+        
+        /* Specific utility for fitting small screens without scroll */
+        .compact-grid {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 6px;
+        }
+        @media (max-width: 360px) {
+            .compact-grid { gap: 4px; }
+            .scale-text-xs { font-size: 0.65rem; }
+        }
     </style>
 </head>
 <body class="bg-[#F8F9FA] text-slate-800 antialiased select-none h-screen overflow-hidden flex flex-col relative">
 
+    <!-- Loading Screen (Animation only at absolute bottom, no background for loader itself) -->
     <div id="loading-screen" class="fixed inset-0 bg-[#070012] z-[100] flex flex-col items-center justify-between transition-opacity duration-700 overflow-hidden">
         <img id="cloudinary-loading-bg" src="https://images.unsplash.com/photo-1635322966219-b75ed372eb01?q=80&w=600" alt="Elite Earn Splash" class="absolute inset-0 w-full h-full object-cover z-0 opacity-90">
 
@@ -43,6 +57,7 @@
         </div>
     </div>
 
+    <!-- Force Join Channel Modal Overlay -->
     <div id="force-join-modal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-xs z-[90] flex items-center justify-center p-4 hidden">
         <div class="bg-white rounded-2xl p-5 w-full max-w-xs text-center space-y-4 shadow-xl">
             <div class="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center mx-auto text-[#6A41EF]">
@@ -63,8 +78,10 @@
         </div>
     </div>
 
+    <!-- Main App Layout Wrapper Container -->
     <div id="main-app" class="max-w-md mx-auto w-full flex-1 flex flex-col justify-between hidden h-full relative">
         
+        <!-- App Top Header Frame Navigation Area -->
         <header class="flex items-center justify-between px-3 py-2 shrink-0 bg-[#F8F9FA] z-20">
             <div class="flex items-center gap-2">
                 <img id="user-avatar" src="https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=150" alt="Avatar" class="w-10 h-10 rounded-full border-2 border-white shadow-xs object-cover">
@@ -87,6 +104,7 @@
             </div>
         </header>
 
+        <!-- Dynamic Context Dropdown Three-Dot Menu -->
         <div id="three-dot-menu" class="absolute right-3 top-12 bg-white border border-slate-100 rounded-xl shadow-lg z-50 p-1.5 w-40 flex flex-col gap-1 transition-all duration-200 opacity-0 scale-95 pointer-events-none">
             <button onclick="openLinkFromMenu('dev')" class="flex items-center gap-2 text-left px-2 py-1.5 text-[10px] font-bold text-slate-700 hover:bg-slate-50 rounded-lg">
                 <i data-lucide="code-2" class="w-3.5 h-3.5 text-blue-500"></i> &lt;/&gt; Developer
@@ -99,8 +117,10 @@
             </button>
         </div>
 
+        <!-- Scrollable Tab Workspace Layout -->
         <div class="flex-1 overflow-hidden relative w-full px-3 pb-16">
             
+            <!-- HOME VIEW PANEL -->
             <main id="tab-home" class="tab-content h-full flex flex-col justify-between gap-1.5">
                 <div class="bg-gradient-to-br from-purple-600 via-indigo-600 to-blue-700 text-white rounded-2xl p-3 shadow-md relative overflow-hidden flex flex-col justify-between h-[115px] shrink-0">
                     <div class="absolute right-3 top-3 bg-white/10 p-3 rounded-xl backdrop-blur-xs border border-white/5">
@@ -110,7 +130,6 @@
                         <p class="text-[9px] font-bold uppercase tracking-wider text-white/70">Total Balance</p>
                         <h2 class="text-2xl font-black tracking-tight mt-0">$<span class="current-balance">0.0000</span></h2>
                     </div>
-                    
                     <div class="bg-white rounded-xl p-1 flex items-center justify-between text-slate-700 text-[10px] font-semibold shadow-xs z-10">
                         <button onclick="openHelpChannel()" class="flex-1 flex items-center justify-center gap-1 py-1 hover:bg-slate-50 rounded-lg transition"><i data-lucide="help-circle" class="w-3 h-3 text-slate-600"></i> Help</button>
                         <div class="h-3 w-[1px] bg-slate-200"></div>
@@ -147,7 +166,8 @@
                     <h4 class="text-[9px] font-bold text-slate-400 tracking-wider uppercase mb-1 shrink-0">Available App Tasks</h4>
                     <div class="flex-1 overflow-y-auto hide-scrollbar">
                         <div id="live-tasks-wrapper" class="grid grid-cols-2 gap-1.5 pb-4">
-                            </div>
+                            <!-- Populated dynamically -->
+                        </div>
                         <div id="no-tasks-fallback" class="w-full text-center py-6 text-slate-400 text-[10px] font-medium hidden">
                             No remaining tasks available! All slots cleared successfully.
                         </div>
@@ -155,6 +175,7 @@
                 </div>
             </main>
 
+            <!-- REFER AND INVITE TAB -->
             <main id="tab-refer" class="tab-content h-full flex flex-col gap-2 hidden">
                 <div id="refer-card-header" class="w-full bg-gradient-to-r from-[#6A41EF] to-[#8F66FA] text-white rounded-2xl p-4 pt-5 relative overflow-hidden h-36 shrink-0 shadow-md">
                     <div class="z-10 w-[60%]">
@@ -199,10 +220,11 @@
                 <div class="flex-1 flex flex-col min-h-0 mx-1">
                     <div class="flex items-center justify-between mb-1.5 shrink-0"><h4 class="text-[11px] font-bold text-slate-800">Referral Network Signups</h4></div>
                     <div id="referral-list-container" class="flex-1 overflow-y-auto hide-scrollbar space-y-1 pb-2">
-                        </div>
+                    </div>
                 </div>
             </main>
 
+            <!-- PROFILE VIEW -->
             <main id="tab-profile" class="tab-content h-full flex flex-col justify-between gap-2 hidden">
                 <div class="bg-gradient-to-br from-[#4A3AFF] via-[#6320EE] to-[#8000FF] text-white rounded-2xl p-4 shadow-lg relative overflow-hidden h-[120px] flex flex-col justify-between shrink-0">
                     <div class="absolute inset-0 bg-[radial-gradient(circle_at_right_top,rgba(255,255,255,0.1),transparent)]"></div>
@@ -243,6 +265,7 @@
             </main>
         </div>
 
+        <!-- App Bottom Fixed Tab Navigation -->
         <nav class="absolute bottom-0 left-0 right-0 h-14 bg-white border-t border-slate-100 flex items-center justify-around px-2 z-40 shrink-0 shadow-lg">
             <button onclick="switchTab('home')" id="nav-btn-home" class="flex flex-col items-center gap-0.5 text-[#6A41EF] font-bold transition">
                 <i data-lucide="home" class="w-5 h-5"></i><span class="text-[9px]">Home</span>
@@ -259,6 +282,7 @@
         </nav>
     </div>
 
+    <!-- NOTIFICATIONS CENTRE -->
     <div id="view-notifications" class="fixed inset-0 bg-[#F8F9FA] z-[60] flex flex-col transform translate-x-full transition-transform duration-300 ease-out">
         <header class="flex items-center justify-between px-4 py-3 bg-white border-b border-slate-100 shrink-0">
             <div class="flex items-center gap-2">
@@ -269,11 +293,10 @@
                 <i data-lucide="x" class="w-4 h-4"></i>
             </button>
         </header>
-        
-        <div id="notifications-list-container" class="flex-1 p-4 overflow-y-auto hide-scrollbar space-y-3">
-            </div>
+        <div id="notifications-list-container" class="flex-1 p-4 overflow-y-auto hide-scrollbar space-y-3"></div>
     </div>
 
+    <!-- WITHDRAWAL CENTRE -->
     <div id="view-withdraw" class="fixed inset-0 bg-[#F8F9FA] z-[65] flex flex-col transform translate-x-full transition-transform duration-300 ease-out hidden">
         <header class="flex items-center justify-between px-4 py-3 bg-white border-b border-slate-100 shrink-0">
             <div class="flex items-center gap-2">
@@ -297,8 +320,7 @@
 
             <div class="space-y-2">
                 <h4 class="text-[10px] font-bold text-slate-400 tracking-wider uppercase">Select Withdrawal Method</h4>
-                <div id="withdraw-methods-dynamic-wrapper" class="grid grid-cols-1 gap-2">
-                    </div>
+                <div id="withdraw-methods-dynamic-wrapper" class="grid grid-cols-1 gap-2"></div>
             </div>
 
             <div class="bg-white p-4 rounded-xl border border-slate-100 shadow-3xs space-y-3">
@@ -322,18 +344,194 @@
         </div>
     </div>
 
+    <!-- GENERIC TASK MODAL -->
     <div id="active-task-modal" class="fixed inset-0 bg-slate-950/60 backdrop-blur-xs z-[75] flex items-center justify-center p-4 hidden">
         <div class="bg-white rounded-2xl w-full max-w-xs p-5 space-y-4 shadow-xl relative overflow-hidden">
             <div class="flex items-center justify-between border-b border-slate-50 pb-2">
                 <h3 id="task-modal-title" class="text-sm font-black text-slate-900">Task Details</h3>
                 <button onclick="closeActiveTaskModal()" class="text-slate-400 hover:text-slate-600"><i data-lucide="x" class="w-4 h-4"></i></button>
             </div>
-
-            <div id="task-modal-body" class="space-y-3">
-                </div>
+            <div id="task-modal-body" class="space-y-3"></div>
         </div>
     </div>
 
+    <!-- NEW VIDEO AD TASK FULL SCREEN VIEW PANEL (1000071901_4.png matching design, NO SCROLL) -->
+    <div id="view-video-ad-task" class="fixed inset-0 bg-[#F4F5F9] z-[80] flex flex-col transform translate-x-full transition-transform duration-300 ease-out hidden">
+        
+        <!-- Navbar -->
+        <header class="flex items-center justify-between px-4 py-2 shrink-0">
+            <button onclick="closeVideoAdTaskView()" class="p-1.5 bg-white rounded-full shadow-sm text-slate-600 active:scale-90 transition">
+                <i data-lucide="chevron-left" class="w-5 h-5"></i>
+            </button>
+            <h2 class="font-extrabold text-sm text-slate-800">Ad Task</h2>
+            <button onclick="openHelpChannel()" class="p-1.5 bg-white rounded-full shadow-sm text-slate-600 active:scale-90 transition">
+                <i data-lucide="help-circle" class="w-4 h-4"></i>
+            </button>
+        </header>
+
+        <!-- Main Body (Flex structure heavily optimized to remove any need for scrolling) -->
+        <div class="flex-1 flex flex-col px-3 pb-3 gap-2 justify-between">
+            
+            <!-- Banner Top -->
+            <div class="bg-gradient-to-r from-[#200B7B] via-[#3C19C0] to-[#5C2EE3] rounded-[18px] p-3 text-white shadow-lg relative overflow-hidden shrink-0 flex items-center justify-between h-[85px]">
+                <div class="absolute inset-0 opacity-20 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] mix-blend-overlay"></div>
+                <div class="z-10 flex gap-2.5 items-center">
+                    <div class="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center backdrop-blur-xs border border-white/20 shrink-0">
+                        <i data-lucide="video" class="w-5 h-5 text-white"></i>
+                    </div>
+                    <div class="space-y-0.5">
+                        <h3 class="font-black text-xs leading-none">Watch Video Ad</h3>
+                        <p class="text-[8px] text-indigo-200">Earn points by watching full ads</p>
+                        <div class="mt-1 inline-block bg-white/10 border border-white/20 px-2 py-0.5 rounded-full text-[9px] font-bold">
+                            Earn <span id="ad-task-reward-badge" class="text-green-400">$0.0000</span> per ad
+                        </div>
+                    </div>
+                </div>
+                <div class="z-10 w-16 h-16 shrink-0 relative">
+                    <!-- Right side illustration mimicking the 3D computer icon from image -->
+                    <div class="absolute inset-0 bg-white/10 rounded-lg border border-white/20 backdrop-blur-xs flex items-center justify-center transform rotate-3">
+                        <i data-lucide="play" class="w-6 h-6 text-white fill-white"></i>
+                    </div>
+                    <div class="absolute -bottom-1 -right-1 w-6 h-6 bg-amber-400 rounded-full border-2 border-[#5C2EE3] flex items-center justify-center shadow-lg">
+                        <i data-lucide="dollar-sign" class="w-3 h-3 text-amber-900 font-bold"></i>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Two Col: Location & Work Rating -->
+            <div class="grid grid-cols-2 gap-2 shrink-0">
+                <div class="bg-white rounded-2xl p-2.5 shadow-sm border border-slate-100 flex items-center gap-2 relative overflow-hidden">
+                    <div class="w-8 h-8 rounded-full bg-indigo-50 flex items-center justify-center shrink-0">
+                        <i data-lucide="globe" class="w-4 h-4 text-indigo-600"></i>
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <p class="text-[7px] font-bold text-slate-400 uppercase tracking-widest leading-none mb-0.5">Your Current Location</p>
+                        <h4 id="ad-task-location-name" class="font-extrabold text-[11px] text-slate-800 truncate leading-tight">Global</h4>
+                        <p id="ad-task-location-status" class="text-[8px] text-indigo-600 font-semibold truncate leading-none mt-0.5">All Countries Allowed</p>
+                    </div>
+                </div>
+                
+                <div class="bg-white rounded-2xl p-2.5 shadow-sm border border-slate-100 flex items-center gap-2 relative overflow-hidden">
+                    <div class="w-8 h-8 rounded-full flex items-center justify-center shrink-0">
+                        <i data-lucide="star" class="w-6 h-6 text-amber-400 fill-amber-400"></i>
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <p class="text-[7px] font-bold text-slate-400 uppercase tracking-widest leading-none mb-0.5">Work Rating</p>
+                        <h4 id="ad-task-rating-val" class="font-extrabold text-[11px] text-slate-800 truncate leading-tight">0.0</h4>
+                        <div class="flex items-center gap-0.5 mt-0.5">
+                            <i data-lucide="star" class="w-2 h-2 text-amber-400 fill-amber-400"></i>
+                            <i data-lucide="star" class="w-2 h-2 text-amber-400 fill-amber-400"></i>
+                            <i data-lucide="star" class="w-2 h-2 text-amber-400 fill-amber-400"></i>
+                            <i data-lucide="star" class="w-2 h-2 text-amber-400 fill-amber-400"></i>
+                            <i data-lucide="star" class="w-2 h-2 text-amber-400 fill-amber-400"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Stats Grid 4 items -->
+            <div class="bg-white rounded-2xl p-2 shadow-sm border border-slate-100 compact-grid shrink-0">
+                <div class="flex flex-col items-center justify-center text-center p-1">
+                    <i data-lucide="eye" class="w-4 h-4 text-indigo-500 mb-1"></i>
+                    <p class="text-[6.5px] font-bold text-slate-500 uppercase tracking-wide">Ads Watched</p>
+                    <h5 id="ad-task-watched-val" class="font-black text-[12px] text-slate-800 my-0.5 scale-text-xs">0</h5>
+                    <p class="text-[7px] text-slate-400 font-medium">Total</p>
+                </div>
+                <div class="flex flex-col items-center justify-center text-center p-1 border-l border-slate-50">
+                    <i data-lucide="mouse-pointer-click" class="w-4 h-4 text-purple-500 mb-1"></i>
+                    <p class="text-[6.5px] font-bold text-slate-500 uppercase tracking-wide">Total Clicked</p>
+                    <h5 id="ad-task-clicked-val" class="font-black text-[12px] text-slate-800 my-0.5 scale-text-xs">0</h5>
+                    <p class="text-[7px] text-slate-400 font-medium">All Time</p>
+                </div>
+                <div class="flex flex-col items-center justify-center text-center p-1 border-l border-slate-50">
+                    <i data-lucide="shield-check" class="w-4 h-4 text-emerald-500 mb-1"></i>
+                    <p class="text-[6.5px] font-bold text-slate-500 uppercase tracking-wide">Success Rate</p>
+                    <h5 id="ad-task-success-val" class="font-black text-[12px] text-slate-800 my-0.5 scale-text-xs">0%</h5>
+                    <p class="text-[7px] text-emerald-600 font-medium">Excellent</p>
+                </div>
+                <div class="flex flex-col items-center justify-center text-center p-1 border-l border-slate-50">
+                    <i data-lucide="users" class="w-4 h-4 text-slate-500 mb-1"></i>
+                    <p class="text-[6.5px] font-bold text-slate-500 uppercase tracking-wide">Total Earned</p>
+                    <h5 id="ad-task-earned-val" class="font-black text-[12px] text-slate-800 my-0.5 scale-text-xs">$0.0000</h5>
+                    <p class="text-[7px] text-slate-400 font-medium">From Ads</p>
+                </div>
+            </div>
+
+            <!-- Limits & Times 4 items -->
+            <div class="bg-white rounded-2xl p-2 shadow-sm border border-slate-100 compact-grid shrink-0">
+                <div class="flex flex-col items-center justify-center text-center p-1">
+                    <i data-lucide="calendar" class="w-3.5 h-3.5 text-indigo-400 mb-1"></i>
+                    <p class="text-[6.5px] font-bold text-slate-500 uppercase tracking-wide">Daily Limit</p>
+                    <h5 id="ad-task-daily-val" class="font-black text-[11px] text-slate-800 my-0.5 scale-text-xs">0/0</h5>
+                    <div class="w-full h-0.5 bg-slate-100 rounded-full mt-0.5"><div class="w-0 h-full bg-indigo-500 rounded-full"></div></div>
+                </div>
+                <div class="flex flex-col items-center justify-center text-center p-1 border-l border-slate-50">
+                    <i data-lucide="clock" class="w-3.5 h-3.5 text-indigo-400 mb-1"></i>
+                    <p class="text-[6.5px] font-bold text-slate-500 uppercase tracking-wide">Hourly Limit</p>
+                    <h5 id="ad-task-hourly-val" class="font-black text-[11px] text-slate-800 my-0.5 scale-text-xs">0/0</h5>
+                    <div class="w-full h-0.5 bg-slate-100 rounded-full mt-0.5"><div class="w-0 h-full bg-indigo-500 rounded-full"></div></div>
+                </div>
+                <div class="flex flex-col items-center justify-center text-center p-1 border-l border-slate-50">
+                    <i data-lucide="gift" class="w-3.5 h-3.5 text-indigo-400 mb-1"></i>
+                    <p class="text-[6.5px] font-bold text-slate-500 uppercase tracking-wide">Click After</p>
+                    <h5 id="ad-task-click-bonus-val" class="font-black text-[11px] text-emerald-600 my-0.5 scale-text-xs">0 ADS</h5>
+                    <p class="text-[6px] text-slate-400 font-medium">Get Bonus</p>
+                </div>
+                <div class="flex flex-col items-center justify-center text-center p-1 border-l border-slate-50">
+                    <i data-lucide="timer" class="w-3.5 h-3.5 text-indigo-400 mb-1"></i>
+                    <p class="text-[6.5px] font-bold text-slate-500 uppercase tracking-wide">Min. Time</p>
+                    <h5 id="ad-task-duration-val" class="font-black text-[10px] text-indigo-600 my-0.5 scale-text-xs">15-30 Sec</h5>
+                    <p class="text-[6px] text-slate-400 font-medium">Per Ad</p>
+                </div>
+            </div>
+
+            <!-- Warning Card -->
+            <div class="bg-red-50 rounded-xl p-2.5 border border-red-100 flex items-center justify-between shrink-0 shadow-sm">
+                <div class="flex items-center gap-2.5">
+                    <i data-lucide="alert-triangle" class="w-5 h-5 text-red-500 shrink-0"></i>
+                    <div>
+                        <h6 class="text-[9px] font-black text-red-700">WARNING!</h6>
+                        <p class="text-[8px] text-red-600 font-medium mt-0.5 leading-tight">If you skip ads or click invalid ads, your account may be suspended.</p>
+                    </div>
+                </div>
+                <div class="text-right shrink-0 ml-1 border-l border-red-200 pl-2">
+                    <h5 id="ad-task-warning-val" class="text-xs font-black text-red-600 leading-none">0/10</h5>
+                    <p class="text-[7px] text-red-500 font-bold mt-0.5">Warning</p>
+                </div>
+            </div>
+
+            <!-- Info Box -->
+            <div class="bg-indigo-50/70 rounded-xl p-2.5 border border-indigo-100 flex items-center gap-2 shrink-0 shadow-sm">
+                <div class="w-5 h-5 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center shrink-0">
+                    <i data-lucide="info" class="w-3 h-3"></i>
+                </div>
+                <p class="text-[8.5px] text-slate-600 font-medium leading-tight">Click ads and watch full video to get reward.<br>Do not skip the ad. Skipping ads may result in account suspension.</p>
+            </div>
+
+            <!-- Watch Action Button -->
+            <button id="ad-task-watch-btn" class="w-full bg-[#3C19C0] hover:bg-[#200B7B] active:scale-98 text-white font-black text-xs py-3.5 rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-indigo-600/30 transition-all shrink-0 mt-1">
+                <i data-lucide="play-circle" class="w-4 h-4"></i> Watch Ad Now
+            </button>
+
+        </div>
+    </div>
+
+    <!-- Modals for Validation States -->
+    <div id="ad-not-allowed-modal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-xs z-[90] flex items-center justify-center p-4 hidden">
+        <div class="bg-white rounded-2xl w-full max-w-xs p-5 text-center space-y-3 shadow-2xl">
+            <div class="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mx-auto text-red-500">
+                <i data-lucide="shield-off" class="w-6 h-6"></i>
+            </div>
+            <h3 class="text-sm font-black text-slate-900">Access Restricted</h3>
+            <p class="text-[10px] text-slate-500 font-medium">This task is currently not available in your region. Please ensure you are not using unauthorized VPNs.</p>
+            <div id="allowed-countries-list" class="bg-slate-50 border border-slate-100 p-2 rounded-xl text-xs font-bold text-slate-700 flex flex-wrap justify-center gap-1.5">
+                <!-- Allowed Countries Injected Here -->
+            </div>
+            <button onclick="closeNotAllowedModal()" class="w-full bg-slate-900 text-white font-bold text-xs p-2.5 rounded-xl transition mt-2">Go Back</button>
+        </div>
+    </div>
+
+    <!-- DYNAMIC CORE SYSTEM POPUP MODALS WINDOW BOX -->
     <div id="promo-modal" class="fixed inset-0 bg-slate-950/60 backdrop-blur-xs z-[80] flex items-center justify-center p-4 hidden">
         <div class="bg-white rounded-2xl p-5 w-full max-w-xs space-y-4 shadow-2xl relative">
             <div class="flex items-center justify-between border-b border-slate-50 pb-2">
@@ -348,6 +546,7 @@
         </div>
     </div>
 
+    <!-- REWARD SUCCESS DIALOG POPUP COMPONENT -->
     <div id="reward-success-popup" class="fixed inset-0 bg-slate-950/70 backdrop-blur-xs z-[95] flex items-center justify-center p-4 hidden">
         <div class="bg-white rounded-2xl p-5 w-full max-w-xs text-center space-y-4 shadow-2xl animate-scaleIn">
             <div class="w-14 h-14 bg-emerald-100 rounded-full flex items-center justify-center mx-auto text-emerald-500">
@@ -361,8 +560,8 @@
         </div>
     </div>
 
+    <!-- MAIN CORE ENGINE MODULE -->
     <script>
-        // Production Configuration Settings
         const firebaseConfig = {
             apiKey: "AIzaSyAZEZXBu_kJjNaVvtL1ZsWpXCkA2zTBZX4",
             authDomain: "elite-earn.firebaseapp.com",
@@ -373,24 +572,25 @@
             measurementId: "G-PX1Y9SS3EZ"
         };
 
-        // Initialize Native Core Firebase Client Instantly to Eliminate Connection Failures
         firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
-        window.db = db; // Global handle assigned safely
+        window.db = db;
 
-        // Mini App Internal Tracking Global Memory Memory Structs Context Layer
         let tg = window.Telegram?.WebApp || null;
         let tgUser = null;
         let userIdStr = "00000000"; 
         let userData = null;
         let adminConfig = null;
         let selectedWithdrawMethodId = null;
-        let consecutiveAdSkipsCount = 0; // Consecutive skips counter tracked per-session inside Ad Task view
+        let backgroundAdCheckInterval = null;
+        let currentActiveVideoTaskId = null;
+        let currentActiveVideoTaskData = null;
 
-        // Clean Fresh Production Base Schema Signatures for Reset States
+        // Clean Fresh Production Base Schema with all dummy data set to 0.0000
         const BASE_BLANK_USER_SCHEMA = {
             balance: 0.0000,
             adsWatchedCount: 0,
+            adsClickedCount: 0, // Track total clicks for Rating logic
             totalEarnedAmount: 0.0000,
             referralsCount: 0,
             validReferralsCount: 0,
@@ -399,7 +599,8 @@
             taskSlots: {},
             lastLoginDate: "",
             lastWarningResetDate: "",
-            adSkipWarningsCount: 0,
+            warningsCount: 0, // Security warnings 
+            rating: 0.0, // Work Rating (0 initially, out of 5)
             walletAddress: "",
             withdrawnTotal: 0.0000,
             username: "anonymous",
@@ -408,22 +609,17 @@
             countryCode: "GL"
         };
 
-        // Initialization Routine Lifecycle Orchestration Engine Triggered on Load Event
         window.addEventListener('DOMContentLoaded', async () => {
-            // Block all other browsers completely, ONLY allow Telegram WebApp
             if (tg && Object.keys(tg.initDataUnsafe).length > 0) {
                 tg.expand();
                 tg.ready();
-                // Safe to proceed inside Telegram Environment
                 document.getElementById('loading-text-node').innerText = "CONNECTING TO SECURE SERVER...";
                 animateProgressBarNode(25);
                 await bootstrapApplicationEcosystem();
             } else {
-                // Not in Telegram WebApp - Stay on loading screen forever with error message
                 document.getElementById('loading-text-node').innerText = "ERROR: PLEASE OPEN IN TELEGRAM MINI APP ONLY.";
                 document.getElementById('loading-progress').style.width = "0%";
                 document.getElementById('loading-progress').classList.add('bg-red-500');
-                // Stop the initialization process entirely
                 return;
             }
         });
@@ -433,39 +629,39 @@
             if(bar) bar.style.width = `${pct}%`;
         }
 
-        // Main loader routine fetching critical configuration payloads safely without throwing unhandled network blocks
         async function bootstrapApplicationEcosystem() {
             try {
-                // Extract Telegram payload criteria mappings securely
                 if (tg && tg.initDataUnsafe && tg.initDataUnsafe.user) {
                     tgUser = tg.initDataUnsafe.user;
                     userIdStr = String(tgUser.id);
                 } else {
-                    // Fallback stub safely routing to clean production base mock criteria profiles
                     userIdStr = "71829381";
                     tgUser = { id: 71829381, first_name: "Production", last_name: "Tester", username: "elite_tester", photo_url: "" };
                 }
 
                 animateProgressBarNode(50);
                 
-                // Read global configurations container payload matching admin metrics schema
                 const adminSnap = await db.collection("admin_settings").doc("global_config").get().catch(e => console.log(e));
                 if (adminSnap && adminSnap.exists) {
                     adminConfig = adminSnap.data();
                 } else {
                     adminConfig = {
-                        officialChannelUsername: "EliteEarnAnnouncement", // Hardcoded Force Join Announcement Channel
+                        officialChannelUsername: "EliteEarnAnnouncement",
                         officialChannelId: "-100215892534",
                         forceJoinRequired: true,
                         developerLink: "https://t.me/ONESHOT_STUDIO_OFFICIAL",
                         privacyLink: "https://t.me/EliteEarn_chat",
-                        termsLink: "https://t.me/EliteEarn_chat"
+                        termsLink: "https://t.me/EliteEarn_chat",
+                        enableCountryCheck: true,
+                        enableDeviceCheck: true,
+                        dailyAdLimit: 500,
+                        hourlyAdLimit: 100,
+                        maxWarnings: 10
                     };
                 }
 
                 animateProgressBarNode(75);
 
-                // Fetch Country Information securely wrapped inside try-catch block to completely fix frozen loading states
                 let userCountryName = "Global";
                 let userCountryCode = "GL";
                 try {
@@ -478,7 +674,6 @@
                     console.log("Country tracking endpoint bypass route activated safely: ", geoErr);
                 }
 
-                // Core User Document Document Tracking Validation Mappings Structure
                 const userRef = db.collection("users").doc(userIdStr);
                 const userSnapshot = await userRef.get().catch(e => console.log(e));
                 
@@ -486,7 +681,6 @@
                 const currentDateStr = `${d.getFullYear()}-${d.getMonth()+1}-${d.getDate()}`;
 
                 if (!userSnapshot || !userSnapshot.exists) {
-                    // Initialize clean and fresh production model profile matching 00 specifications
                     userData = { ...BASE_BLANK_USER_SCHEMA };
                     userData.username = tgUser.username || "username";
                     userData.fullName = `${tgUser.first_name || ""} ${tgUser.last_name || ""}`.trim() || "Elite End-User";
@@ -495,16 +689,13 @@
                     userData.lastLoginDate = currentDateStr;
                     userData.lastWarningResetDate = currentDateStr;
 
-                    // Evaluate URL referral startup tracking codes safely matching direct miniapp mapping structures
                     let referrerId = extractStartupReferralToken();
                     if (referrerId && referrerId !== userIdStr) {
                         userData.referredByUplinkId = referrerId;
-                        // Award referrer allocation counters increment metrics instantly
                         await db.collection("users").doc(String(referrerId)).update({
                             referralsCount: firebase.firestore.FieldValue.increment(1)
                         }).catch(e => console.log(e));
                     }
-
                     await userRef.set(userData).catch(e => console.log(e));
                 } else {
                     userData = userSnapshot.data();
@@ -515,27 +706,23 @@
                         updates.lastLoginDate = currentDateStr;
                     }
                     if (userData.lastWarningResetDate !== currentDateStr) {
-                        updates.adSkipWarningsCount = 0;
+                        updates.warningsCount = 0;
                         updates.lastWarningResetDate = currentDateStr;
                     }
                     await userRef.update(updates).catch(e => console.log(e));
                     
-                    // Reload fresh data package representation matching fields
                     const refSnap = await userRef.get();
                     userData = refSnap.data();
                 }
 
                 animateProgressBarNode(100);
                 
-                // Initialize User Interface Components Elements Arrays Structure Layouts
                 synchronizeApplicationStateFields();
                 listenToLiveAppDataStreams();
                 
-                // Resolve loading curtain layers visibility smoothly
                 document.getElementById('loading-screen').classList.add('opacity-0', 'pointer-events-none');
                 document.getElementById('main-app').classList.remove('hidden');
 
-                // Enforce Membership Constraints Structure Verification Mapping Check
                 if (adminConfig.forceJoinRequired) {
                     evaluateForceJoinModalState();
                 }
@@ -543,7 +730,7 @@
             } catch (fatalErr) {
                 console.error("Initialization pipeline exception crashed loading sequence: ", fatalErr);
                 document.getElementById('loading-text-node').innerText = "NETWORK TIMEOUT - ATTEMPTING RECONNECT...";
-                setTimeout(bootstrapApplicationEcosystem, 3000); // Retry boot flow smoothly
+                setTimeout(bootstrapApplicationEcosystem, 3000);
             }
         }
 
@@ -551,12 +738,10 @@
             if(tg && tg.initDataUnsafe && tg.initDataUnsafe.start_param) {
                 return String(tg.initDataUnsafe.start_param).trim();
             }
-            // Fallback parsing query string rules if direct parameter mapping structure omitted
             const params = new URLSearchParams(window.location.search);
             return params.get('tgWebAppStartParam') || params.get('start') || null;
         }
 
-        // Real-Time Reactive Sync Pipeline Stream Listener Mapping
         function listenToLiveAppDataStreams() {
             db.collection("users").doc(userIdStr).onSnapshot(docSnap => {
                 if(docSnap && docSnap.exists) {
@@ -565,7 +750,6 @@
                 }
             }, err => console.log("User stream detached safely: ", err));
 
-            // Sync dynamic live platform notifications badge allocations counters
             db.collection("notifications").onSnapshot(snap => {
                 if(snap) {
                     let totalCount = snap.docs.length;
@@ -583,18 +767,14 @@
             });
         }
 
-        // Populate and Sync View Display Fields Globally
         function synchronizeApplicationStateFields() {
             if(!userData) return;
             
-            // Format numeric values cleanly to support high-precision tracking fields
             const balanceStr = parseFloat(userData.balance || 0).toFixed(4);
             const totalEarnedStr = parseFloat(userData.totalEarnedAmount || 0).toFixed(4);
             
-            // Balance text bindings mapping fields
             document.querySelectorAll('.current-balance').forEach(el => el.innerText = balanceStr);
             
-            // Bind analytical metadata markers counters text labels safely
             document.getElementById('user-name').innerText = userData.fullName || "Elite User";
             document.getElementById('user-id').innerText = userIdStr;
             document.getElementById('user-username').innerText = userData.username || "anonymous";
@@ -614,24 +794,25 @@
             document.getElementById('refer-total-earning').innerText = `$${parseFloat(userData.referralCommissionsEarned || 0).toFixed(4)}`;
             document.getElementById('refer-valid-count').innerText = userData.validReferralsCount || 0;
             
-            // Set avatar links
             if(tgUser && tgUser.photo_url) {
                 document.getElementById('user-avatar').src = tgUser.photo_url;
                 document.getElementById('profile-avatar-node').src = tgUser.photo_url;
             }
 
-            // Set up direct miniapp refer link pointing directly to the Telegram bot miniapp scheme
             const botUsernameStr = adminConfig?.botUsername || "EliteEarnPremiumBot";
             const appShortNameStr = adminConfig?.appShortName || "earn";
             document.getElementById('refer-link').innerText = `https://t.me/${botUsernameStr}/${appShortNameStr}?startapp=${userIdStr}`;
 
-            // Render country display billboard information cleanly with flag graphic symbols mapping fields
             const flagEmoji = getCountryFlagEmojiSymbol(userData.countryCode);
             document.getElementById('user-country-badge').innerHTML = `<span>${flagEmoji}</span> <span>${userData.country || "Global Region"}</span>`;
 
-            // Refresh sub-views array builders
             populateLiveTasksGridPanel();
             renderReferralsNetworkSublist();
+            
+            // Sync Video Ad UI if open
+            if(!document.getElementById('view-video-ad-task').classList.contains('hidden')) {
+                syncVideoAdTaskUI();
+            }
         }
 
         function getCountryFlagEmojiSymbol(countryCodeStr) {
@@ -644,9 +825,7 @@
             }
         }
 
-        // Tab Navigation Panel Orchestration Engine Router Switching Mechanics
         function switchTab(tabIdString) {
-            // Unset active toggle visual traits from structural DOM nodes lists
             const tabs = ['home', 'refer', 'profile'];
             tabs.forEach(t => {
                 document.getElementById(`tab-${t}`).classList.add('hidden');
@@ -659,7 +838,6 @@
                 if(ind) ind.classList.replace('bg-[#6A41EF]', 'bg-transparent');
             });
 
-            // Activate current selection targets structures context fields elements
             document.getElementById(`tab-${tabIdString}`).classList.remove('hidden');
             const activeBtn = document.getElementById(`nav-btn-${tabIdString}`);
             if(activeBtn) {
@@ -669,53 +847,29 @@
             const activeInd = document.getElementById(`indicator-${tabIdString}`);
             if(activeInd) activeInd.classList.replace('bg-transparent', 'bg-[#6A41EF]');
             
-            // Lucide rendering refresher binding structural icons mapping classes
             lucide.createIcons();
         }
 
-        // Populates tasks with matching constraints, increment slots, lifetime removal
         async function populateLiveTasksGridPanel() {
             const wrapper = document.getElementById('live-tasks-wrapper');
             if(!wrapper) return;
             wrapper.innerHTML = "";
 
-            // Query dynamic task lists entries collections payload matrix from database backend
             const taskSnapshot = await db.collection("tasks").orderBy("createdAt", "desc").get().catch(e => console.log(e));
-            
-            // Loop item block items configuration builders
             let visibleTasksCounterCount = 0;
-            
-            // Add fixed static system default Short Video Task entry trigger
-            const shortVideoEl = document.createElement('div');
-            shortVideoEl.className = "bg-white p-3 rounded-2xl border border-slate-100 shadow-3xs flex flex-col justify-between gap-3 relative overflow-hidden active:scale-98 transition";
-            shortVideoEl.onclick = () => alert("coming soon");
-            shortVideoEl.innerHTML = `
-                <div class="space-y-1">
-                    <div class="flex items-center justify-between"><span class="bg-amber-100 text-amber-700 text-[8px] font-black px-1.5 py-0.5 rounded-full uppercase">HOT</span><i data-lucide="zap" class="w-3.5 h-3.5 text-amber-500 fill-amber-500/20"></i></div>
-                    <h5 class="text-xs font-black text-slate-800 tracking-tight leading-tight mt-1">Short Video Ads</h5>
-                    <p class="text-[9px] text-slate-400 font-medium">Coming Soon Module</p>
-                </div>
-                <div class="flex items-center justify-between border-t border-slate-50 pt-1.5 mt-1"><span class="text-[10px] font-black text-[#6A41EF]">$0.0500</span><span class="text-[8px] text-slate-400 font-bold">Slot Ready</span></div>
-            `;
-            wrapper.appendChild(shortVideoEl);
-            visibleTasksCounterCount++;
 
             if(taskSnapshot && !taskSnapshot.empty) {
                 taskSnapshot.docs.forEach(docItem => {
                     const taskId = docItem.id;
                     const taskData = docItem.data();
 
-                    // Skip displaying if task resides inside user lifetime completed allocation tracker
                     if (userData.completedTasks && userData.completedTasks.includes(taskId)) {
                         return; 
                     }
 
                     visibleTasksCounterCount++;
-                    
-                    // Fetch dynamic runtime item tracking parameter settings fields values mapping entries slots
                     const currentSlotVal = userData.taskSlots?.[taskId] || 1;
                     
-                    // Route color layout indicators based on type properties configurations structures
                     let iconName = "play";
                     let typeBadgeClass = "bg-purple-100 text-purple-700";
                     if(taskData.type === "channel") { iconName = "send"; typeBadgeClass = "bg-blue-100 text-blue-700"; }
@@ -744,7 +898,6 @@
                 });
             }
 
-            // Toggle empty display panels states layout controls smoothly
             const fallback = document.getElementById('no-tasks-fallback');
             if(visibleTasksCounterCount === 0) fallback.classList.remove('hidden');
             else fallback.classList.add('hidden');
@@ -752,12 +905,17 @@
             lucide.createIcons();
         }
 
-        // Active Tasks Execution Pipeline Mappings
         function launchSelectedTaskExecutionPipeline(taskId, taskData) {
-            // Security verification checking device and countries access rights structures metrics configuration fields
-            if(taskData.type === "video" || taskData.type === "channel" || taskData.type === "visit" || taskData.type === "view") {
+            // Divert logic completely if task type is 'video'
+            if(taskData.type === "video") {
+                openVideoAdTaskView(taskId, taskData);
+                return;
+            }
+
+            // Normal check for other tasks
+            if(taskData.type === "channel" || taskData.type === "visit" || taskData.type === "view") {
                 if(taskData.allowedCountries && taskData.allowedCountries.length > 0) {
-                    if(!taskData.allowedCountries.includes(userData.countryCode)) {
+                    if(!taskData.allowedCountries.includes(userData.countryCode) && !taskData.allowedCountries.includes('Global')) {
                         alert(`This task slot is unavailable in your country region (${userData.country}).`);
                         return;
                     }
@@ -767,97 +925,196 @@
             const modalTitle = document.getElementById('task-modal-title');
             const modalBody = document.getElementById('task-modal-body');
             
-            // Set title to the exact task type name cleanly (e.g. Channel Task, View Task)
-            let correctTypeName = "Video AD Task";
+            let correctTypeName = "Task Request";
             if(taskData.type === "channel") correctTypeName = "Channel Task";
             else if(taskData.type === "visit") correctTypeName = "Visit Task";
             else if(taskData.type === "view") correctTypeName = "View Task";
             
             modalTitle.innerText = correctTypeName;
-
-            // Generate specialized dialog template boxes based on task parameters signature metrics mapping properties
-            let interactionMarkup = "";
             const currentSlotValue = userData.taskSlots?.[taskId] || 1;
 
-            if(taskData.type === "video") {
-                // Determine geo flags display lists rules
-                let geoAllowedLabel = "Global allowed";
-                if(taskData.allowedCountries && taskData.allowedCountries.length > 0) {
-                    geoAllowedLabel = taskData.allowedCountries.map(c => getCountryFlagEmojiSymbol(c)).join(' ');
-                }
-
-                interactionMarkup = `
-                    <div class="text-center space-y-3 py-2">
-                        <div class="text-[10px] bg-slate-50 p-2 rounded-xl border border-slate-100 flex flex-col gap-1 items-center justify-center">
-                            <div class="flex items-center gap-1 font-bold text-slate-600">Active Geolocation: ${getCountryFlagEmojiSymbol(userData.countryCode)} ${userData.country}</div>
-                            <div class="text-[8px] text-slate-400 font-medium uppercase tracking-wider mt-0.5">Allowed Regions Below:</div>
-                            <div class="text-xs mt-0.5">${geoAllowedLabel}</div>
-                        </div>
-                        <p class="text-[10px] text-slate-500 font-medium leading-relaxed">Watch video presentation to unlock allocation rewards balances immediately.</p>
-                        <div class="bg-purple-50 border border-purple-100 p-2.5 rounded-xl text-center"><span class="text-xs font-black text-[#6320EE]">$${parseFloat(taskData.reward || 0).toFixed(4)} Reward Granted</span></div>
-                        <button onclick="simulateVideoAdPlaybackWorkflow('${taskId}', ${taskData.reward})" class="w-full bg-[#6320EE] text-white text-xs font-black p-2.5 rounded-xl flex items-center justify-center gap-1.5 shadow-sm">
-                            <i data-lucide="play-circle" class="w-4 h-4"></i> Start Ad Playback
-                        </button>
-                    </div>
-                `;
-            } else {
-                // Route generic template format for channel, view, and visit tasks smoothly
-                interactionMarkup = `
-                    <div class="space-y-3 py-1">
-                        <div class="bg-slate-50 p-2 rounded-xl text-center border border-slate-100"><h6 class="text-xs font-bold text-slate-800">${taskData.title || "Task Goal"}</h6><p class="text-[10px] text-slate-400 mt-0.5 font-medium">${taskData.description || "Follow requirements carefully."}</p></div>
-                        <div class="flex items-center justify-between text-[10px] font-bold text-slate-500 bg-slate-50 p-2 rounded-lg"><span class="uppercase">Current Sequence Slot:</span><span class="text-slate-800">Slot ${currentSlotValue}</span></div>
-                        <button onclick="executeGenericExternalTaskLink('${taskId}', '${taskData.link}', ${taskData.reward})" class="w-full bg-slate-900 text-white text-xs font-black p-2.5 rounded-xl flex items-center justify-center gap-1">Launch Destination Link <i data-lucide="external-link" class="w-3.5 h-3.5 ml-1"></i></button>
-                    </div>
-                `;
-            }
+            let interactionMarkup = `
+                <div class="space-y-3 py-1">
+                    <div class="bg-slate-50 p-2 rounded-xl text-center border border-slate-100"><h6 class="text-xs font-bold text-slate-800">${taskData.title || "Task Goal"}</h6><p class="text-[10px] text-slate-400 mt-0.5 font-medium">${taskData.description || "Follow requirements carefully."}</p></div>
+                    <div class="flex items-center justify-between text-[10px] font-bold text-slate-500 bg-slate-50 p-2 rounded-lg"><span class="uppercase">Current Sequence Slot:</span><span class="text-slate-800">Slot ${currentSlotValue}</span></div>
+                    <button onclick="executeGenericExternalTaskLink('${taskId}', '${taskData.link}', ${taskData.reward})" class="w-full bg-slate-900 text-white text-xs font-black p-2.5 rounded-xl flex items-center justify-center gap-1">Launch Destination Link <i data-lucide="external-link" class="w-3.5 h-3.5 ml-1"></i></button>
+                </div>
+            `;
 
             modalBody.innerHTML = interactionMarkup;
             document.getElementById('active-task-modal').classList.remove('hidden');
             lucide.createIcons();
         }
 
-        function closeActiveTaskModal() {
-            document.getElementById('active-task-modal').classList.add('hidden');
-            // Clean up backdrops instantly to avoid overlapping claim button layout artifacts
+        // ==========================================
+        // NEW VIDEO AD TASK CORE LOGIC
+        // ==========================================
+        
+        async function openVideoAdTaskView(taskId, taskData) {
+            currentActiveVideoTaskId = taskId;
+            currentActiveVideoTaskData = taskData;
+            
+            // 1. Initial Device & Country Validation Check Map
+            let isAllowed = await validateAdAccessPermission(taskData, false);
+            if(!isAllowed) return; // Halt if validation failed (Modal handled inside)
+
+            // 2. Open Full Screen UI Panel Frame
+            const page = document.getElementById('view-video-ad-task');
+            page.classList.remove('hidden');
+            setTimeout(() => page.classList.remove('translate-x-full'), 10);
+            
+            // 3. Sync Dynamic View Elements
+            syncVideoAdTaskUI();
+            
+            // 4. Register Background Country Validation Loop Tracker (Every 3 Mins)
+            if(backgroundAdCheckInterval) clearInterval(backgroundAdCheckInterval);
+            backgroundAdCheckInterval = setInterval(() => {
+                validateAdAccessPermission(currentActiveVideoTaskData, true);
+            }, 180000); // 180,000 ms = 3 minutes
+            
+            // 5. Connect Button Execution Event
+            const watchBtn = document.getElementById('ad-task-watch-btn');
+            watchBtn.onclick = () => simulateVideoAdPlaybackWorkflow(taskId, taskData.reward);
+        }
+
+        function closeVideoAdTaskView() {
+            if(backgroundAdCheckInterval) clearInterval(backgroundAdCheckInterval);
+            currentActiveVideoTaskId = null;
+            currentActiveVideoTaskData = null;
+            const page = document.getElementById('view-video-ad-task');
+            page.classList.add('translate-x-full');
+            setTimeout(() => page.classList.add('hidden'), 300);
             removeFloatingOverlayArtifacts();
         }
 
-        // Simulates Ad viewing securely. Rewards auto-add on finish, handles consecutive skips warning tracking logs daily
-        function simulateVideoAdPlaybackWorkflow(taskId, rewardAmt) {
-            closeActiveTaskModal();
+        async function validateAdAccessPermission(taskData, isBackground) {
+            // Check flags inside Admin Collection overrides
+            const performCountryCheck = adminConfig?.enableCountryCheck !== false;
+            const performDeviceCheck = adminConfig?.enableDeviceCheck !== false;
+
+            if(performCountryCheck) {
+                const allowedList = taskData.allowedCountries || [];
+                if(allowedList.length > 0 && !allowedList.includes('Global')) {
+                    if(!allowedList.includes(userData.countryCode)) {
+                        // User out of bounds!
+                        if(isBackground) {
+                            // Penalty for jumping proxies mid-session
+                            handleAdSkipWarningWorkflow("Unauthorized Geolocation Change Detected in Background Loop.");
+                            closeVideoAdTaskView();
+                        } else {
+                            displayNotAllowedModal(allowedList);
+                        }
+                        return false;
+                    }
+                }
+            }
+
+            if(performDeviceCheck) {
+                // Placeholder for device limitation metrics (Multi-account detection logic)
+            }
+            return true;
+        }
+
+        function displayNotAllowedModal(allowedCodesArr) {
+            const listWrapper = document.getElementById('allowed-countries-list');
+            listWrapper.innerHTML = allowedCodesArr.map(c => `
+                <div class="flex items-center gap-1 bg-white border border-slate-100 px-1.5 py-0.5 rounded shadow-3xs">
+                    ${getCountryFlagEmojiSymbol(c)} ${c}
+                </div>
+            `).join('');
+            document.getElementById('ad-not-allowed-modal').classList.remove('hidden');
+        }
+
+        function closeNotAllowedModal() {
+            document.getElementById('ad-not-allowed-modal').classList.add('hidden');
+        }
+
+        function syncVideoAdTaskUI() {
+            if(!currentActiveVideoTaskData || !userData) return;
             
-            // Invoke Monetization SDK triggers wrapper securely
+            // Banner Configs
+            const rwdStr = parseFloat(currentActiveVideoTaskData.reward || 0).toFixed(4);
+            document.getElementById('ad-task-reward-badge').innerText = `$${rwdStr}`;
+            
+            // Location Grid Box Config
+            const allowed = currentActiveVideoTaskData.allowedCountries || [];
+            if(allowed.includes('Global') || allowed.length === 0) {
+                document.getElementById('ad-task-location-name').innerText = "Global";
+                document.getElementById('ad-task-location-status').innerText = "All Countries Allowed";
+            } else {
+                document.getElementById('ad-task-location-name').innerText = `${getCountryFlagEmojiSymbol(userData.countryCode)} ${userData.country}`;
+                document.getElementById('ad-task-location-status').innerText = `Allowed Verified`;
+            }
+
+            // Stats Grids Configuration Data Bindings Updates
+            let watched = parseInt(userData.adsWatchedCount || 0);
+            let clicked = parseInt(userData.adsClickedCount || 0);
+            let successRate = clicked > 0 ? Math.round((watched / clicked) * 100) : 0;
+            let ratingVal = parseFloat(userData.rating || 0).toFixed(1);
+            let warningAmt = parseInt(userData.warningsCount || 0);
+            let limitMaxW = parseInt(adminConfig?.maxWarnings || 10);
+            
+            document.getElementById('ad-task-watched-val').innerText = watched;
+            document.getElementById('ad-task-clicked-val').innerText = clicked;
+            document.getElementById('ad-task-success-val').innerText = `${successRate}%`;
+            document.getElementById('ad-task-earned-val').innerText = `$${parseFloat(userData.totalEarnedAmount || 0).toFixed(4)}`;
+            
+            document.getElementById('ad-task-rating-val').innerText = ratingVal;
+            document.getElementById('ad-task-warning-val').innerText = `${warningAmt}/${limitMaxW}`;
+
+            // Thresholds Admin Bindings Properties
+            let dLimit = adminConfig?.dailyAdLimit || 500;
+            let hLimit = adminConfig?.hourlyAdLimit || 100;
+            
+            document.getElementById('ad-task-daily-val').innerText = `0/${dLimit}`; // Implement actual daily sync based on timestamps arrays if needed
+            document.getElementById('ad-task-hourly-val').innerText = `0/${hLimit}`;
+            
+            lucide.createIcons();
+        }
+
+        async function simulateVideoAdPlaybackWorkflow(taskId, rewardAmt) {
+            // First step is always incrementing total clicked metrics securely
+            await db.collection("users").doc(userIdStr).update({
+                adsClickedCount: firebase.firestore.FieldValue.increment(1)
+            }).catch(e => console.log(e));
+            
+            // Invoke Monetization SDK securely wrapper logic
             if (typeof show_11235004 === 'function') {
                 show_11235004().then(() => {
-                    // Success playback outcome pipeline callback logic route
-                    consecutiveAdSkipsCount = 0; // Reset consecutive skips tracker instantly on successful completion
                     commitTaskRewardSettlementToDatabase(taskId, rewardAmt, "Video AD Playback Reward");
                 }).catch((err) => {
                     console.log("Playback skipped or exception intercepted: ", err);
-                    handleAdSkipWarningWorkflow();
+                    handleAdSkipWarningWorkflow("Ad Skiped / Interrupted Process");
                 });
             } else {
-                // Production simulation fallback sequence routines
+                // Production simulation fallback sequence
                 alert("[Simulation] Loading secure video ad stream window frame structure...");
                 setTimeout(() => {
-                    consecutiveAdSkipsCount = 0;
-                    commitTaskRewardSettlementToDatabase(taskId, rewardAmt, "Simulated Video Ad Reward");
+                    commitTaskRewardSettlementToDatabase(taskId, rewardAmt, "Video AD Playback Reward");
                 }, 4000);
             }
         }
 
-        function handleAdSkipWarningWorkflow() {
-            consecutiveAdSkipsCount++;
-            if(consecutiveAdSkipsCount >= 3) {
-                consecutiveAdSkipsCount = 0; // Reset counter
-                
-                // Trigger profile incremental warning counts field records database updates
-                db.collection("users").doc(userIdStr).update({
-                    adSkipWarningsCount: firebase.firestore.FieldValue.increment(1)
-                }).catch(e => console.log(e));
-                
-                alert("🔴 Dynamic Platform Warning:\nYou have skipped 3 tasks consecutively. Please watch ads entirely to avoid security limitation penalties.");
+        function handleAdSkipWarningWorkflow(reasonStr) {
+            const limit = adminConfig?.maxWarnings || 10;
+            const newCount = (parseInt(userData.warningsCount) || 0) + 1;
+            
+            db.collection("users").doc(userIdStr).update({
+                warningsCount: firebase.firestore.FieldValue.increment(1)
+            }).catch(e => console.log(e));
+            
+            alert(`🔴 Dynamic Platform Warning:\n${reasonStr}\nWarning Count: ${newCount}/${limit}`);
+            if(newCount >= limit) {
+                alert("Account flagged for suspension analysis.");
+                // Disable app interaction block logic here
             }
+            removeFloatingOverlayArtifacts();
+        }
+
+        // ==========================================
+
+        function closeActiveTaskModal() {
+            document.getElementById('active-task-modal').classList.add('hidden');
             removeFloatingOverlayArtifacts();
         }
 
@@ -866,38 +1123,49 @@
             if(tg) tg.openLink(urlString);
             else window.open(urlString, '_blank');
 
-            // Dispatch settlement verification pipeline background routines instantly
             setTimeout(() => {
                 commitTaskRewardSettlementToDatabase(taskId, rewardAmt, "Task Completion Allocation");
             }, 3000);
         }
 
-        // Commit reward to balance automatically, handles slot sequence tracking and lifetime removal mapping routines
         async function commitTaskRewardSettlementToDatabase(taskId, rewardAmount, typeLabelString) {
             try {
                 const userRef = db.collection("users").doc(userIdStr);
                 
-                // Fetch dynamic sequence slot configurations parameters profiles
                 const currentSlotValue = userData.taskSlots?.[taskId] || 1;
                 const nextSlotValue = currentSlotValue + 1;
 
-                // Prepare state updates properties packages data models definitions
+                // Calculate updated Rating Rules based on success completion ratio dynamically
+                let curWatched = parseInt(userData.adsWatchedCount || 0) + 1;
+                let curClicked = parseInt(userData.adsClickedCount || 0);
+                if(typeLabelString === "Video AD Playback Reward" && curClicked === 0) curClicked = 1; // Avoid divide by zero
+                let newRating = 5.0;
+                if(curClicked > 0 && typeLabelString === "Video AD Playback Reward") {
+                    let ratio = curWatched / curClicked;
+                    newRating = ratio * 5.0; // Dynamic 0.0 to 5.0 Rating Scale mapping calculation metrics
+                    if(newRating > 5.0) newRating = 5.0;
+                } else {
+                    newRating = parseFloat(userData.rating || 0.0);
+                }
+
                 let updatePayload = {
                     balance: firebase.firestore.FieldValue.increment(rewardAmount),
                     totalEarnedAmount: firebase.firestore.FieldValue.increment(rewardAmount),
                     adsWatchedCount: firebase.firestore.FieldValue.increment(1),
+                    rating: newRating,
                     [`taskSlots.${taskId}`]: nextSlotValue
                 };
 
-                // Remove task permanently for a lifetime after a single completion by pushing to completedTasks array
-                updatePayload.completedTasks = firebase.firestore.FieldValue.arrayUnion(taskId);
+                // Remove non-video lifetime tasks
+                if(typeLabelString !== "Video AD Playback Reward") {
+                    updatePayload.completedTasks = firebase.firestore.FieldValue.arrayUnion(taskId);
+                }
 
                 await userRef.update(updatePayload).catch(e => console.log(e));
 
-                // Process UPLINK Refer commissions calculations network routing structures silently without creating separate logs in history
                 if(userData.referredByUplinkId) {
                     const referrerIdStr = String(userData.referredByUplinkId);
-                    const commAmount = rewardAmount * 0.10; // Fixed 10% commission payout metric tracking rule allocation
+                    const commAmount = rewardAmount * 0.10; 
                     
                     await db.collection("users").doc(referrerIdStr).update({
                         balance: firebase.firestore.FieldValue.increment(commAmount),
@@ -905,27 +1173,21 @@
                     }).catch(e => console.log(e));
                 }
 
-                // Destroy persistent overlays to avoid display bugs
                 removeFloatingOverlayArtifacts();
-                
-                // Show localized visual confirmation modal boxes templates
-                displayRewardSuccessPopup(`+$${parseFloat(rewardAmount).toFixed(4)} credited automatically to balance account parameters.`);
+                displayRewardSuccessPopup(`+$${parseFloat(rewardAmount).toFixed(4)} credited automatically to balance account.`);
 
             } catch (err) {
                 console.error("Settlement failure logging processing database routines: ", err);
             }
         }
 
-        // Fixes screen overlay bugs by thoroughly cleaning up lingering DOM elements
         function removeFloatingOverlayArtifacts() {
-            // Remove any residual fullscreen ad wrappers or banners that show up at the bottom of screens
             const lingeringBanners = document.querySelectorAll('[id*="ad_skip"], [class*="claim-btn"], iframe[src*="libtl"]');
             lingeringBanners.forEach(el => {
                 try { el.remove(); } catch(e){}
             });
         }
 
-        // Server-Validated Promo Code Ecosystem Processing Mappings
         async function executePromoCodeValidation() {
             const inputField = document.getElementById('promo-input');
             const codeString = inputField.value.trim().toUpperCase();
@@ -934,7 +1196,6 @@
             closePromoModal();
 
             try {
-                // Fetch promo record document array signature matching from database server collections rows
                 const codeRef = db.collection("promo_codes").doc(codeString);
                 const codeSnap = await codeRef.get();
 
@@ -947,13 +1208,11 @@
                 const claimedCount = promoData.claimedCount || 0;
                 const limitMax = promoData.limit || 0;
 
-                // Check limit availability constraints mappings parameters records definitions
                 if(claimedCount >= limitMax) {
                     alert("Maximum limit reached");
                     return;
                 }
 
-                // Check if user has already redeemed this specific code previously to preserve integrity
                 if(userData.claimedPromoCodes && userData.claimedPromoCodes.includes(codeString)) {
                     alert("You have already redeemed this promo voucher.");
                     return;
@@ -961,7 +1220,6 @@
 
                 const rewardVal = parseFloat(promoData.reward || 0);
 
-                // Commit transactional updates payloads inside database backend records schemas parameters
                 await db.collection("users").doc(userIdStr).update({
                     balance: firebase.firestore.FieldValue.increment(rewardVal),
                     totalEarnedAmount: firebase.firestore.FieldValue.increment(rewardVal),
@@ -972,7 +1230,6 @@
                     claimedCount: firebase.firestore.FieldValue.increment(1)
                 });
 
-                // Display success prompt panel with exact reward amount
                 displayRewardSuccessPopup(`Success! Promo Code applied flawlessly. Reward amount of +$${rewardVal.toFixed(4)} granted.`);
                 inputField.value = "";
 
@@ -992,13 +1249,11 @@
             removeFloatingOverlayArtifacts();
         }
 
-        // Dynamically Fetched Withdraw Methods Mappings
         async function openWithdrawPage() {
             const page = document.getElementById('view-withdraw');
             page.classList.remove('hidden');
             setTimeout(() => page.classList.remove('translate-x-full'), 10);
             
-            // Pull dynamic cashout method pathways arrays profiles from admin collection configurations logs
             const methodsWrapper = document.getElementById('withdraw-methods-dynamic-wrapper');
             if(!methodsWrapper) return;
             methodsWrapper.innerHTML = "<p class='text-[9px] text-slate-400 font-bold p-2 animate-pulse'>Syncing Payment Gateways...</p>";
@@ -1014,7 +1269,6 @@
                     const mData = docItem.data();
                     if(index === 0) firstMethodId = mId;
 
-                    // Support selectable active states highlighting border outlines structures
                     const activeStyleClass = (selectedWithdrawMethodId === mId || (!selectedWithdrawMethodId && index === 0)) ? 'border-[#6320EE] bg-purple-50/40' : 'border-slate-100 bg-slate-50';
                     if(!selectedWithdrawMethodId && index === 0) {
                         selectedWithdrawMethodId = mId;
@@ -1026,11 +1280,9 @@
                     rowEl.onclick = () => {
                         selectedWithdrawMethodId = mId;
                         updateWithdrawLabelsWithLimits(mData);
-                        // Re-trigger layout render loop configurations update states
                         openWithdrawPage();
                     };
 
-                    // Display image logo dynamically loaded from admin panel data on the left side
                     const imageSrcUrl = mData.logoUrl || "https://images.unsplash.com/photo-1621416894569-0f39ed31d247?q=80&w=80";
 
                     rowEl.innerHTML = `
@@ -1066,7 +1318,6 @@
             removeFloatingOverlayArtifacts();
         }
 
-        // Paste button clipboard fetcher implementation functionality
         async function triggerAddressClipboardPaste() {
             try {
                 const copiedText = await navigator.clipboard.readText();
@@ -1074,7 +1325,6 @@
                     document.getElementById('withdraw-address-input').value = copiedText;
                 }
             } catch (err) {
-                // Inline modal tracking errors warnings fallback indicators rules
                 console.log("Clipboard API permission rejected: ", err);
                 alert("Please paste text address strings manually using keyboard functions.");
             }
@@ -1097,7 +1347,6 @@
                 return;
             }
 
-            // Verify chosen gateway boundaries criteria limits from database snapshot properties rules
             const gatewaySnap = await db.collection("withdraw_methods").doc(selectedWithdrawMethodId).get();
             if(!gatewaySnap.exists) {
                 alert("Invalid method selection channel profile configuration rules.");
@@ -1113,7 +1362,6 @@
                 return;
             }
 
-            // Commit transaction document structures data updates package
             try {
                 const txIdStr = `TX-${Math.floor(100000 + Math.random() * 900000)}`;
                 
@@ -1144,7 +1392,6 @@
             }
         }
 
-        // Render Referrals Network Signups Sublist View
         async function renderReferralsNetworkSublist() {
             const container = document.getElementById('referral-list-container');
             if(!container) return;
@@ -1156,7 +1403,6 @@
                 referralSnapshot.docs.forEach(docItem => {
                     const refData = docItem.data();
                     
-                    // A referral is valid if they watched at least 10 ads
                     const isValid = (refData.adsWatchedCount >= 10);
                     const statusTextLabel = isValid ? "VALID MEMBER" : "INCOMPLETE (Watched: " + (refData.adsWatchedCount || 0) + "/10)";
                     const badgeColorStyleClass = isValid ? "bg-emerald-50 text-emerald-600 border-emerald-100" : "bg-amber-50 text-amber-600 border-amber-100";
@@ -1180,7 +1426,6 @@
             }
         }
 
-        // Notifications Centre Toggle Panel Overlay Mechanics
         async function toggleNotificationsView() {
             const page = document.getElementById('view-notifications');
             page.classList.remove('translate-x-full');
@@ -1193,7 +1438,6 @@
             listWrapper.innerHTML = "";
 
             if(noticesSnap && !noticesSnap.empty) {
-                // Record read entries counters bounds to clear text badge markers bubbles values perfectly
                 localStorage.setItem('elite_viewed_notif_count', String(noticesSnap.docs.length));
                 document.getElementById('noti-badge').classList.add('hidden');
 
@@ -1222,7 +1466,6 @@
             removeFloatingOverlayArtifacts();
         }
 
-        // Dropdown Menu Toggles with 7-Second Dismissal Lifecycles Mappings
         let menuDismissalTrackerTimeout = null;
         function toggleThreeDotMenu() {
             const menuNode = document.getElementById('three-dot-menu');
@@ -1232,7 +1475,6 @@
                 menuNode.classList.remove('pointer-events-none', 'opacity-0', 'scale-95');
                 menuNode.classList.add('opacity-100', 'scale-100');
                 
-                // Clear any existing active timer bounds to reset countdown
                 if(menuDismissalTrackerTimeout) clearTimeout(menuDismissalTrackerTimeout);
                 menuDismissalTrackerTimeout = setTimeout(() => {
                     hideThreeDotMenuDropdown();
@@ -1262,9 +1504,7 @@
             else window.open(targetUrlString, '_blank');
         }
 
-        // Verification Mapping Checking Channel Membership Loops Requirements
         function evaluateForceJoinModalState() {
-            // Evaluates user document properties indicators cached inside profile schemas database items parameters
             if(userData && userData.hasJoinedOfficialChannelVerificationToken) {
                 document.getElementById('force-join-modal').classList.add('hidden');
             } else {
@@ -1280,10 +1520,7 @@
         }
 
         async function verifyChannelMembership() {
-            // Standard integration rules matching production verification check hooks layout triggers query pipelines
             alert("Checking channel validation records on the server...");
-            
-            // Simulation routing path configuration settings updates automatically on click events sequence
             try {
                 await db.collection("users").doc(userIdStr).update({
                     hasJoinedOfficialChannelVerificationToken: true
@@ -1296,7 +1533,6 @@
             }
         }
 
-        // Copy and Share Referral Links Logic Configuration Structures Mappings
         function copyReferralLink() {
             const textToCopyStr = document.getElementById('refer-link').innerText;
             navigator.clipboard.writeText(textToCopyStr);
@@ -1312,7 +1548,6 @@
             else window.open(telegramShareUrlString, '_blank');
         }
 
-        // Dialog Popups Window Actions Trigger Components Controls
         function openHelpChannel() {
             const destinationUrl = "https://t.me/EliteEarn_chat";
             if(tg) tg.openLink(destinationUrl);
